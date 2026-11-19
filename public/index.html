@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stok DQueen — Persediaan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FAF8F5;
+      --surface: #FFFFFF;
+      --surface-subtle: #F6F3EE;
+      --border: #E6DFD5;
+      --border-strong: #D4C9BC;
+      --text: #1C2620;
+      --text-muted: #536258;
+      --brand: #1B382B;
+      --brand-hover: #132A20;
+      --gold: #B8935B;
+      --gold-surface: #F8F3EA;
+      --danger: #B33939;
+      --danger-bg: #FDF2F2;
+      --success: #246B47;
+      --success-bg: #EDF7F1;
+      --radius: 8px;
+      --shadow-sm: 0 1px 3px rgba(28, 38, 32, 0.05);
+      --shadow-modal: 0 16px 36px rgba(28, 38, 32, 0.16);
+      --font-sans: "Outfit", -apple-system, sans-serif;
+      --font-display: "Playfair Display", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      padding-bottom: 40px;
+    }
+
+    /* Topbar */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+    .topbar-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 20px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-crest {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: #FAF4E8;
+      display: grid;
+      place-items: center;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 14px;
+      font-style: italic;
+    }
+    .brand-name {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--brand);
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: var(--gold);
+      font-weight: 600;
+      margin-left: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Sheet Tabs Bar (Persis seperti tab sheet Excel) */
+    .sheet-tabs-bar {
+      background: var(--surface);
+      border-bottom: 2px solid var(--border);
+      position: sticky;
+      top: 56px;
+      z-index: 30;
+    }
+    .sheet-tabs-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .sheet-tab {
+      padding: 12px 18px;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .sheet-tab:hover {
+      color: var(--brand);
+      background: var(--surface-subtle);
+    }
+    .sheet-tab.active {
+      color: var(--brand);
+      border-bottom-color: var(--brand);
+      font-weight: 700;
+      background: var(--surface);
+    }
+    .sheet-tab-count {
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+    }
+    .sheet-tab.active .sheet-tab-count {
+      background: var(--gold-surface);
+      color: var(--gold);
+      border-color: #E2D3BE;
+    }
+
+    /* Container Shell */
+    .shell {
+      max-width: 1280px;
+      margin: 20px auto;
+      padding: 0 20px;
+    }
+
+    /* Toolbar Header */
+    .sheet-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .sheet-title-area {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .sheet-title {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--brand);
+    }
+    .sheet-meta {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .sheet-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .btn-brand {
+      background: var(--brand);
+      color: #FAF4E8;
+    }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+    .btn-secondary:hover { background: var(--surface-subtle); }
+    .btn-success {
+      background: var(--success);
+      color: #FFF;
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: #FFF;
+    }
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 12px;
+      border-radius: 4px;
+    }
+
+    /* Inputs */
+    .search-input {
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      width: 260px;
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--brand);
+    }
+
+    /* Table */
+    .table-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      box-shadow: var(--shadow-sm);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    th {
+      background: var(--surface-subtle);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface-subtle); }
+
+    .stock-val {
+      font-size: 15px;
+      font-weight: 700;
+      font-feature-settings: "tnum";
+    }
+    .stock-zero { color: var(--danger); }
+    .stock-has { color: var(--brand); }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(28, 38, 32, 0.4);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.15s ease;
+    }
+    .modal-overlay.open { opacity: 1; visibility: visible; }
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: var(--shadow-modal);
+    }
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-head h3 {
+      font-family: var(--font-display);
+      font-size: 18px;
+      color: var(--brand);
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .form-group { margin-bottom: 12px; }
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 5px;
+    }
+    .form-control {
+      width: 100%;
+      padding: 8px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+    }
+    .form-control:focus { outline: none; border-color: var(--brand); }
+
+    /* Tactile Mutation Buttons */
+    .btn-mutasi-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-mutasi {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 6px 13px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 20px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      letter-spacing: 0.3px;
+    }
+    .btn-mutasi-symbol {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    /* Keluar Button */
+    .btn-mutasi-keluar {
+      background: #FFF2F2;
+      color: #B32626;
+      border-color: #F8C8C8;
+      box-shadow: 0 1px 2px rgba(179, 38, 38, 0.06);
+    }
+    .btn-mutasi-keluar .btn-mutasi-symbol {
+      background: #FEE2E2;
+      color: #991B1B;
+    }
+    .btn-mutasi-keluar:hover {
+      background: #B32626;
+      color: #FFFFFF;
+      border-color: #B32626;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(179, 38, 38, 0.22);
+    }
+    .btn-mutasi-keluar:hover .btn-mutasi-symbol {
+      background: rgba(255, 255, 255, 0.25);
+      color: #FFFFFF;
+    }
+    .btn-mutasi-keluar:active {
+      transform: translateY(0);
+    }
+
+    /* Masuk Button */
+    .btn-mutasi-masuk {
+      background: #EDF7F1;
+      color: #166534;
+      border-color: #C3E6D0;
+      box-shadow: 0 1px 2px rgba(22, 101, 52, 0.06);
+    }
+    .btn-mutasi-masuk .btn-mutasi-symbol {
+      background: #DCFCE7;
+      color: #166534;
+    }
+    .btn-mutasi-masuk:hover {
+      background: #166534;
+      color: #FFFFFF;
+      border-color: #166534;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(22, 101, 52, 0.22);
+    }
+    .btn-mutasi-masuk:hover .btn-mutasi-symbol {
+      background: rgba(255, 255, 255, 0.25);
+      color: #FFFFFF;
+    }
+    .btn-mutasi-masuk:active {
+      transform: translateY(0);
+    }
+
+    /* Type buttons toggle */
+    .type-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+      background: var(--surface-subtle);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .type-btn {
+      padding: 11px 14px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background: transparent;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.18s ease;
+      color: var(--text-muted);
+    }
+    .type-btn.active-masuk {
+      background: #FFFFFF;
+      border-color: #166534;
+      color: #166534;
+      box-shadow: 0 2px 8px rgba(22, 101, 52, 0.12);
+    }
+    .type-btn.active-keluar {
+      background: #FFFFFF;
+      border-color: #B32626;
+      color: #B32626;
+      box-shadow: 0 2px 8px rgba(179, 38, 38, 0.12);
+    }
+
+    /* Toast */
+    .toast-box {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--brand);
+      padding: 10px 14px;
+      border-radius: 6px;
+      box-shadow: var(--shadow-modal);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .toast.toast-error { border-left-color: var(--danger); }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-brand">
+        <div class="brand-crest">DQ</div>
+        <span class="brand-name">Stok DQueen</span>
+        <span class="brand-sub">Persediaan</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-brand btn-sm" onclick="exportExcel()">📥 Unduh Excel (.xlsx)</button>
+        <button class="btn btn-secondary btn-sm" onclick="backupDb()">💾 Cadangkan</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sheet Tabs (Kardus, Nampan, Standing, Kantor, Pita, Box, Riwayat) -->
+  <nav class="sheet-tabs-bar">
+    <div class="sheet-tabs-inner" id="sheetTabsContainer">
+      <!-- Generated via JS -->
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="shell">
+    <div class="sheet-header">
+      <div class="sheet-title-area">
+        <h2 class="sheet-title" id="sheetTitle">Sheet Kardus</h2>
+        <span class="sheet-meta" id="sheetMeta">Memuat item...</span>
+      </div>
+      <div class="sheet-controls">
+        <input type="text" id="searchInput" class="search-input" placeholder="Cari nama barang..." oninput="filterItems()">
+        <button class="btn btn-brand" id="btnAddBarang" onclick="openNewBarangModal()">＋ Tambah Barang</button>
+      </div>
+    </div>
+
+    <!-- Table of Items or History -->
+    <div class="table-box">
+      <table>
+        <thead id="tableHead">
+          <!-- Dynamically populated -->
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="5" style="text-align:center; padding:24px;">Memuat data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- MODAL: CATAT MUTASI (MASUK / KELUAR) -->
+  <div class="modal-overlay" id="modalTx">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>Catat Mutasi Stok</h3>
+        <button class="modal-close" onclick="closeModal('modalTx')">&times;</button>
+      </div>
+
+      <div class="type-toggle">
+        <button type="button" class="type-btn" id="btnTypeMasuk" onclick="setTxType('MASUK')">＋ Barang Masuk</button>
+        <button type="button" class="type-btn active-keluar" id="btnTypeKeluar" onclick="setTxType('KELUAR')">－ Barang Keluar</button>
+      </div>
+
+      <form id="txForm" onsubmit="submitTx(event)">
+        <input type="hidden" id="txBarangId">
+        <input type="hidden" id="txType" value="KELUAR">
+
+        <div class="form-group">
+          <label class="form-label">Nama Barang</label>
+          <input type="text" id="txBarangNama" class="form-control" readonly style="background:var(--surface-subtle); font-weight:600;">
+        </div>
+
+        <div class="form-group" style="display:flex; gap:10px;">
+          <div style="flex:1;">
+            <label class="form-label">Tanggal</label>
+            <input type="date" id="txTanggal" class="form-control" required>
+          </div>
+          <div style="flex:1;">
+            <label class="form-label">Jumlah (Qty)</label>
+            <input type="number" id="txQty" class="form-control" min="1" step="any" placeholder="Qty" required autofocus>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">PIC / Nama Pengambil</label>
+          <input type="text" id="txPic" class="form-control" list="picList" placeholder="Nama pengambil atau ket..." required>
+          <datalist id="picList"></datalist>
+        </div>
+
+        <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalTx')">Batal</button>
+          <button type="submit" class="btn btn-brand" id="txSubmitBtn">Simpan Mutasi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: TAMBAH BARANG BARU KE SHEET -->
+  <div class="modal-overlay" id="modalBarang">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="modalBarangTitle">Tambah Barang</h3>
+        <button class="modal-close" onclick="closeModal('modalBarang')">&times;</button>
+      </div>
+
+      <form id="barangForm" onsubmit="submitBarang(event)">
+        <div class="form-group" id="groupKategoriBarang">
+          <label class="form-label">Kategori / Sheet</label>
+          <select id="bKategori" class="form-control">
+            <option value="Kardus">Kardus</option>
+            <option value="Nampan">Nampan</option>
+            <option value="Standing">Standing</option>
+            <option value="Kantor">Kantor</option>
+            <option value="Pita">Pita</option>
+            <option value="Box">Box</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nama Barang</label>
+          <input type="text" id="bNama" class="form-control" placeholder="Contoh: Kardus 25x25x10, Pita Merah 1/2 inch..." required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stok Awal</label>
+          <input type="number" id="bSaldoAwal" class="form-control" min="0" value="0">
+        </div>
+
+        <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalBarang')">Batal</button>
+          <button type="submit" class="btn btn-brand">Simpan Barang</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast-box" id="toastBox"></div>
+
+  <script>
+    const API = 'http://localhost:3001';
+    const SHEETS = ['Kardus', 'Nampan', 'Standing', 'Kantor', 'Pita', 'Box'];
+    let currentSheet = 'Kardus';
+    let currentItems = [];
+    let categoriesMeta = {};
+
+    function toast(msg, isError = false) {
+      const box = document.getElementById('toastBox');
+      const el = document.createElement('div');
+      el.className = `toast ${isError ? 'toast-error' : ''}`;
+      el.textContent = msg;
+      box.appendChild(el);
+      setTimeout(() => el.remove(), 2500);
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    // Inisialisasi Sheet Tabs
+    async function init() {
+      await loadCategories();
+      renderTabs();
+      switchSheet('Semua');
+      loadPics();
+    }
+
+    async function loadCategories() {
+      try {
+        const cats = await fetch(`${API}/api/kategori`).then(r => r.json());
+        cats.forEach(c => categoriesMeta[c.nama] = c);
+      } catch (e) {}
+    }
+
+    function renderTabs() {
+      const container = document.getElementById('sheetTabsContainer');
+      let totalAll = 0;
+      SHEETS.forEach(s => totalAll += (categoriesMeta[s]?.total_barang || 0));
+
+      let html = `<button class="sheet-tab ${currentSheet === 'Semua' ? 'active' : ''}" onclick="switchSheet('Semua')">
+        <span>Semua Barang</span>
+        <span class="sheet-tab-count">${totalAll}</span>
+      </button>`;
+
+      html += SHEETS.map(name => {
+        const meta = categoriesMeta[name] || { total_barang: 0 };
+        const activeClass = name === currentSheet ? 'active' : '';
+        return `<button class="sheet-tab ${activeClass}" onclick="switchSheet('${name}')">
+          <span>${name}</span>
+          <span class="sheet-tab-count">${meta.total_barang || 0}</span>
+        </button>`;
+      }).join('');
+
+      html += `<button class="sheet-tab ${currentSheet === 'Riwayat' ? 'active' : ''}" onclick="switchSheet('Riwayat')">
+        <span>📜 Riwayat Mutasi</span>
+      </button>`;
+
+      container.innerHTML = html;
+    }
+
+    function switchSheet(sheetName) {
+      currentSheet = sheetName;
+      renderTabs();
+      document.getElementById('searchInput').value = '';
+
+      const btnAdd = document.getElementById('btnAddBarang');
+      if (sheetName === 'Riwayat') {
+        document.getElementById('sheetTitle').textContent = 'Riwayat Semua Mutasi';
+        document.getElementById('sheetMeta').textContent = 'Catatan keluar masuk seluruh barang';
+        btnAdd.style.display = 'none';
+        loadRiwayat();
+      } else if (sheetName === 'Semua') {
+        document.getElementById('sheetTitle').textContent = 'Semua Barang Persediaan';
+        btnAdd.style.display = 'inline-flex';
+        loadSheetItems('Semua');
+      } else {
+        document.getElementById('sheetTitle').textContent = `Sheet: ${sheetName}`;
+        btnAdd.style.display = 'inline-flex';
+        loadSheetItems(sheetName);
+      }
+    }
+
+    async function loadSheetItems(sheetName) {
+      const thead = document.getElementById('tableHead');
+      const tbody = document.getElementById('tableBody');
+      const isSemua = (sheetName === 'Semua');
+      tbody.innerHTML = `<tr><td colspan="${isSemua ? 5 : 4}" style="text-align:center; padding:24px;">Memuat barang...</td></tr>`;
+
+      thead.innerHTML = `
+        <tr>
+          <th style="width:50px;">No</th>
+          <th>Nama Barang</th>
+          ${isSemua ? '<th style="width:110px;">Sheet</th>' : ''}
+          <th style="width:130px; text-align:right;">Sisa Stok</th>
+          <th style="width:180px; text-align:center;">Catat Mutasi</th>
+        </tr>
+      `;
+
+      try {
+        currentItems = await fetch(`${API}/api/barang?kategori=${encodeURIComponent(sheetName)}`).then(r => r.json());
+        document.getElementById('sheetMeta').textContent = `${currentItems.length} barang terdaftar`;
+        renderItemTable(currentItems);
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="${isSemua ? 5 : 4}" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat barang.</td></tr>`;
+      }
+    }
+
+    function renderItemTable(items) {
+      const tbody = document.getElementById('tableBody');
+      const isSemua = (currentSheet === 'Semua');
+      const colspan = isSemua ? 5 : 4;
+
+      if (items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; padding:24px; color:var(--text-muted);">Tidak ada barang yang cocok.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = items.map((b, idx) => {
+        const stokClass = b.stok <= 0 ? 'stock-zero' : 'stock-has';
+        return `
+          <tr>
+            <td style="color:var(--text-muted);">${idx + 1}</td>
+            <td><strong>${b.nama}</strong></td>
+            ${isSemua ? `<td><span style="font-size:11px; background:var(--surface-subtle); padding:2px 7px; border-radius:4px; border:1px solid var(--border); font-weight:600;">${b.kategori_nama}</span></td>` : ''}
+            <td style="text-align:right;"><span class="stock-val ${stokClass}">${b.stok}</span></td>
+            <td style="text-align:center;">
+              <div class="btn-mutasi-wrap">
+                <button type="button" class="btn-mutasi btn-mutasi-keluar" onclick='openTxModal(${JSON.stringify(b)}, "KELUAR")'>
+                  <span class="btn-mutasi-symbol">−</span>
+                  <span>Keluar</span>
+                </button>
+                <button type="button" class="btn-mutasi btn-mutasi-masuk" onclick='openTxModal(${JSON.stringify(b)}, "MASUK")'>
+                  <span class="btn-mutasi-symbol">＋</span>
+                  <span>Masuk</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterItems() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      if (currentSheet === 'Riwayat') {
+        loadRiwayat(q);
+      } else {
+        const filtered = currentItems.filter(b => b.nama.toLowerCase().includes(q));
+        renderItemTable(filtered);
+      }
+    }
+
+    async function loadRiwayat(search = '') {
+      const thead = document.getElementById('tableHead');
+      const tbody = document.getElementById('tableBody');
+
+      thead.innerHTML = `
+        <tr>
+          <th style="width:90px;">Tanggal</th>
+          <th style="width:70px;">Tipe</th>
+          <th>Nama Barang</th>
+          <th style="width:90px;">Sheet</th>
+          <th style="width:80px; text-align:right;">Qty</th>
+          <th>PIC / Pengambil</th>
+        </tr>
+      `;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px;">Memuat riwayat...</td></tr>`;
+
+      try {
+        const data = await fetch(`${API}/api/transaksi?kategori=Semua&search=${encodeURIComponent(search)}`).then(r => r.json());
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">Belum ada riwayat mutasi.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data.map(r => {
+          const tipeColor = r.tipe === 'MASUK' ? 'var(--success)' : (r.tipe === 'KELUAR' ? 'var(--danger)' : 'var(--gold)');
+          return `
+            <tr>
+              <td>${r.tanggal}</td>
+              <td style="font-weight:700; color:${tipeColor};">${r.tipe}</td>
+              <td><strong>${r.nama}</strong></td>
+              <td><span style="font-size:11px; background:var(--surface-subtle); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">${r.kategori_nama}</span></td>
+              <td style="text-align:right; font-weight:700;">${r.qty}</td>
+              <td>${r.pic || '-'}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat riwayat.</td></tr>`;
+      }
+    }
+
+    // Modal Mutasi
+    function openTxModal(item, defaultType = 'KELUAR') {
+      document.getElementById('txBarangId').value = item.id;
+      document.getElementById('txBarangNama').value = item.nama;
+      document.getElementById('txTanggal').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('txQty').value = '';
+      document.getElementById('txPic').value = '';
+      setTxType(defaultType);
+      openModal('modalTx');
+      setTimeout(() => document.getElementById('txQty').focus(), 150);
+    }
+
+    function setTxType(type) {
+      document.getElementById('txType').value = type;
+      const bMasuk = document.getElementById('btnTypeMasuk');
+      const bKeluar = document.getElementById('btnTypeKeluar');
+      const submitBtn = document.getElementById('txSubmitBtn');
+
+      if (type === 'MASUK') {
+        bMasuk.className = 'type-btn active-masuk';
+        bKeluar.className = 'type-btn';
+        submitBtn.textContent = '＋ Simpan Barang Masuk';
+        submitBtn.style.background = '#166534';
+      } else {
+        bMasuk.className = 'type-btn';
+        bKeluar.className = 'type-btn active-keluar';
+        submitBtn.textContent = '－ Simpan Barang Keluar';
+        submitBtn.style.background = '#B32626';
+      }
+    }
+
+    async function submitTx(e) {
+      e.preventDefault();
+      const barang_id = document.getElementById('txBarangId').value;
+      const tanggal = document.getElementById('txTanggal').value;
+      const tipe = document.getElementById('txType').value;
+      const qty = document.getElementById('txQty').value;
+      const pic = document.getElementById('txPic').value;
+
+      try {
+        const res = await fetch(`${API}/api/transaksi`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ barang_id, tanggal, tipe, qty, pic })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal mencatat mutasi');
+
+        toast(`Mutasi ${tipe} berhasil dicatat! Sisa stok: ${data.sisa_stok}`);
+        closeModal('modalTx');
+        loadPics();
+        if (currentSheet === 'Riwayat') loadRiwayat();
+        else loadSheetItems(currentSheet);
+      } catch (err) {
+        toast(err.message, true);
+      }
+    }
+
+    // Modal Tambah Barang
+    function openNewBarangModal() {
+      const isSemua = (currentSheet === 'Semua' || currentSheet === 'Riwayat');
+      document.getElementById('modalBarangTitle').textContent = isSemua ? 'Tambah Barang Baru' : `Tambah Barang ke Sheet ${currentSheet}`;
+      document.getElementById('barangForm').reset();
+      const catSelect = document.getElementById('bKategori');
+      if (catSelect) {
+        catSelect.value = !isSemua ? currentSheet : 'Kardus';
+      }
+      openModal('modalBarang');
+      setTimeout(() => document.getElementById('bNama').focus(), 150);
+    }
+
+    async function submitBarang(e) {
+      e.preventDefault();
+      const kat = document.getElementById('bKategori')?.value || currentSheet;
+      const nama = document.getElementById('bNama').value;
+      const saldo_awal = document.getElementById('bSaldoAwal').value;
+
+      try {
+        const res = await fetch(`${API}/api/barang`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kategori: kat, nama, saldo_awal })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal menambah barang');
+
+        toast(`Barang "${nama}" berhasil disimpan`);
+        closeModal('modalBarang');
+        await loadCategories();
+        renderTabs();
+        loadSheetItems(currentSheet);
+      } catch (err) {
+        toast(err.message, true);
+      }
+    }
+
+    async function loadPics() {
+      try {
+        const pics = await fetch(`${API}/api/pic`).then(r => r.json());
+        const dl = document.getElementById('picList');
+        dl.innerHTML = pics.map(p => `<option value="${p}">`).join('');
+      } catch (e) {}
+    }
+
+    function exportExcel() {
+      toast('Mendownload Excel 6 Sheet...');
+      window.location.href = `${API}/api/laporan`;
+    }
+
+    async function backupDb() {
+      try {
+        toast('Menyimpan cadangan...');
+        const res = await fetch(`${API}/api/backup`, { method: 'POST' });
+        const d = await res.json();
+        toast(`Cadangan tersimpan: ${d.filename}`);
+      } catch (e) {
+        toast('Gagal mencadangkan database', true);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
