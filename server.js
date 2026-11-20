@@ -174,6 +174,7 @@ function createZip(files) {
 function escapeXml(str) {
   if (str === null || str === undefined) return '';
   return String(str)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -182,11 +183,14 @@ function escapeXml(str) {
 }
 
 function buildSheetXml(rows) {
+  const lastRow = Math.max(rows.length + 1, 1);
   let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <dimension ref="A1:F${lastRow}"/>
   <sheetViews>
     <sheetView workbookViewId="0">
       <pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>
+      <selection pane="bottomLeft" activeCell="A2" sqref="A2"/>
     </sheetView>
   </sheetViews>
   <sheetFormatPr defaultRowHeight="20"/>
@@ -234,10 +238,13 @@ function buildSheetXml(rows) {
     rNum++;
   }
 
-  const lastRow = Math.max(rNum - 1, 1);
   xml += `
-  </sheetData>
-  <autoFilter ref="A1:F${lastRow}"/>
+  </sheetData>`;
+  if (rows.length > 0) {
+    xml += `
+  <autoFilter ref="A1:F${lastRow}"/>`;
+  }
+  xml += `
 </worksheet>`;
   return xml;
 }
@@ -263,12 +270,12 @@ function generateMultiSheetXlsx(categories, rowsByCategory) {
 </Relationships>`;
 
   let wbRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/package/2006/relationships/styles" Target="styles.xml"/>`;
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`;
 
   sheetList.forEach((s, idx) => {
     wbRelsXml += `\n  <Relationship Id="rId${idx + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${idx + 1}.xml"/>`;
   });
+  wbRelsXml += `\n  <Relationship Id="rId${sheetList.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
   wbRelsXml += `\n</Relationships>`;
 
   let workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -283,11 +290,11 @@ function generateMultiSheetXlsx(categories, rowsByCategory) {
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <fonts count="5">
-    <font><name val="Calibri"/><sz val="11"/><color rgb="FF1E293B"/></font>
-    <font><b/><name val="Calibri"/><sz val="11"/><color rgb="FFFFFFFF"/></font>
-    <font><b/><name val="Calibri"/><sz val="10"/><color rgb="FF166534"/></font>
-    <font><b/><name val="Calibri"/><sz val="10"/><color rgb="FF991B1B"/></font>
-    <font><b/><name val="Calibri"/><sz val="10"/><color rgb="FF854D0E"/></font>
+    <font><sz val="11"/><color rgb="FF1E293B"/><name val="Calibri"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+    <font><b/><sz val="10"/><color rgb="FF166534"/><name val="Calibri"/></font>
+    <font><b/><sz val="10"/><color rgb="FF991B1B"/><name val="Calibri"/></font>
+    <font><b/><sz val="10"/><color rgb="FF854D0E"/><name val="Calibri"/></font>
   </fonts>
   <fills count="7">
     <fill><patternFill patternType="none"/></fill>
@@ -299,66 +306,60 @@ function generateMultiSheetXlsx(categories, rowsByCategory) {
     <fill><patternFill patternType="solid"><fgColor rgb="FFFEF3C7"/></patternFill></fill>
   </fills>
   <borders count="2">
-    <border><left/><right/><top/><bottom/></border>
+    <border><left/><right/><top/><bottom/><diagonal/></border>
     <border>
       <left style="thin"><color rgb="FFE2E8F0"/></left>
       <right style="thin"><color rgb="FFE2E8F0"/></right>
       <top style="thin"><color rgb="FFE2E8F0"/></top>
       <bottom style="thin"><color rgb="FFE2E8F0"/></bottom>
+      <diagonal/>
     </border>
   </borders>
-  <cellXfs count="13">
-    <!-- 0: default -->
+  <cellStyleXfs count="1">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
-    <!-- 1: Header emerald bold -->
-    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+  </cellStyleXfs>
+  <cellXfs count="13">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 2: White Center (No, Tanggal) -->
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" applyBorder="1" applyAlignment="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 3: White Left (Nama Barang) -->
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" applyBorder="1" applyAlignment="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
       <alignment horizontal="left" vertical="center"/>
     </xf>
-    <!-- 4: White Right Qty -->
-    <xf numFmtId="3" fontId="0" fillId="0" borderId="1" applyBorder="1" applyAlignment="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
       <alignment horizontal="right" vertical="center"/>
     </xf>
-    <!-- 5: White Left PIC -->
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" applyBorder="1" applyAlignment="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
       <alignment horizontal="left" vertical="center"/>
     </xf>
-    <!-- 6: Badge MASUK (soft green) -->
-    <xf numFmtId="0" fontId="2" fillId="4" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+    <xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 7: Badge KELUAR (soft red) -->
-    <xf numFmtId="0" fontId="3" fillId="5" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+    <xf numFmtId="0" fontId="3" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 8: Badge AWAL (soft amber) -->
-    <xf numFmtId="0" fontId="4" fillId="6" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+    <xf numFmtId="0" fontId="4" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 9: Zebra Center -->
-    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1">
+    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 10: Zebra Left -->
-    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1">
+    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="left" vertical="center"/>
     </xf>
-    <!-- 11: Zebra Right Qty -->
-    <xf numFmtId="3" fontId="0" fillId="3" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1">
+    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="right" vertical="center"/>
     </xf>
-    <!-- 12: Zebra Left PIC -->
-    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" applyFill="1" applyBorder="1" applyAlignment="1">
+    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="left" vertical="center"/>
     </xf>
   </cellXfs>
+  <cellStyles count="1">
+    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+  </cellStyles>
 </styleSheet>`;
 
   const files = [
