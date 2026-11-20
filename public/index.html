@@ -734,10 +734,11 @@
               <th style="padding: 8px 12px;">Tipe</th>
               <th style="padding: 8px 12px; text-align: right;">Qty</th>
               <th style="padding: 8px 12px;">PIC</th>
+              <th style="padding: 8px 12px; text-align: center; width: 45px;">Aksi</th>
             </tr>
           </thead>
           <tbody id="itemHistoryBody">
-            <tr><td colspan="4" style="text-align: center; padding: 20px;">Memuat riwayat...</td></tr>
+            <tr><td colspan="5" style="text-align: center; padding: 20px;">Memuat riwayat...</td></tr>
           </tbody>
         </table>
       </div>
@@ -762,7 +763,7 @@
           <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
         </svg>
       </div>
-      <h3 style="margin: 0 0 8px; font-size: 17px; font-weight: 700;">Hapus Barang?</h3>
+      <h3 id="confirmDeleteTitle" style="margin: 0 0 8px; font-size: 17px; font-weight: 700;">Hapus?</h3>
       <p id="confirmDeleteText" style="color: var(--text-muted); font-size: 13px; margin: 0 0 20px; line-height: 1.5;"></p>
       <div style="display: flex; gap: 10px; justify-content: center;">
         <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeModal('modalConfirmDelete')">Batal</button>
@@ -961,14 +962,15 @@
           <th style="width:130px; white-space:nowrap;">Kategori</th>
           <th style="width:80px; text-align:right; white-space:nowrap;">Qty</th>
           <th style="width:140px; white-space:nowrap;">PIC / Pengambil</th>
+          <th style="width:60px; text-align:center; white-space:nowrap;">Aksi</th>
         </tr>
       `;
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px;">Memuat riwayat...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px;">Memuat riwayat...</td></tr>`;
 
       try {
         const data = await fetch(`${API}/api/transaksi?kategori=Semua&search=${encodeURIComponent(search)}`).then(r => r.json());
         if (data.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">Belum ada riwayat mutasi.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);">Belum ada riwayat mutasi.</td></tr>`;
           return;
         }
 
@@ -982,11 +984,18 @@
               <td style="white-space:nowrap;"><span class="cat-badge">${r.kategori_nama}</span></td>
               <td style="text-align:right; font-weight:700;">${r.qty}</td>
               <td style="white-space:nowrap;">${r.pic || '-'}</td>
+              <td style="text-align:center; white-space:nowrap;">
+                <button type="button" class="btn-delete-item" title="Hapus Riwayat Ini" onclick='confirmDeleteTransaksi(${r.id}, "${r.nama.replace(/'/g, "\\'")}", "${r.tipe}", ${r.qty})'>
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
+                  </svg>
+                </button>
+              </td>
             </tr>
           `;
         }).join('');
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat riwayat.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat riwayat.</td></tr>`;
       }
     }
 
@@ -998,14 +1007,14 @@
       document.getElementById('itemHistoryTitle').textContent = barangNama;
       document.getElementById('itemHistorySubtitle').textContent = 'Memuat riwayat mutasi...';
       const tbody = document.getElementById('itemHistoryBody');
-      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">Memuat riwayat...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px;">Memuat riwayat...</td></tr>`;
       openModal('modalItemHistory');
 
       try {
         const txs = await fetch(`${API}/api/transaksi?barang_id=${barangId}`).then(r => r.json());
         document.getElementById('itemHistorySubtitle').textContent = `${txs.length} catatan mutasi`;
         if (txs.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">Belum ada riwayat mutasi.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">Belum ada riwayat mutasi.</td></tr>`;
           return;
         }
 
@@ -1021,15 +1030,23 @@
               <td style="padding: 8px 12px; font-weight:700; color:${tipeColor}; white-space:nowrap; font-size:12px;">${t.tipe}</td>
               <td style="padding: 8px 12px; text-align:right; font-weight:700; font-size:12px;">${t.qty}</td>
               <td style="padding: 8px 12px; font-size:12px;">${picBadge}</td>
+              <td style="padding: 8px 12px; text-align:center;">
+                <button type="button" class="btn-delete-item" style="width:24px; height:24px;" title="Hapus Riwayat Ini" onclick='confirmDeleteTransaksi(${t.id}, "${barangNama.replace(/'/g, "\\'")}", "${t.tipe}", ${t.qty}, ${barangId})'>
+                  <svg style="width:12px; height:12px;" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
+                  </svg>
+                </button>
+              </td>
             </tr>
           `;
         }).join('');
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat riwayat.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat riwayat.</td></tr>`;
       }
     }
 
     function confirmDeleteBarang(id, nama) {
+      document.getElementById('confirmDeleteTitle').textContent = 'Hapus Barang?';
       document.getElementById('confirmDeleteText').textContent = `Apakah Anda yakin ingin menghapus "${nama}" dari daftar persediaan?`;
       document.getElementById('btnConfirmDeleteAction').onclick = () => doDeleteBarang(id, nama);
       openModal('modalConfirmDelete');
@@ -1055,6 +1072,39 @@
     function deleteCurrentHistoryItem() {
       if (!currentHistoryItem) return;
       confirmDeleteBarang(currentHistoryItem.id, currentHistoryItem.nama);
+    }
+
+    function confirmDeleteTransaksi(id, nama, tipe, qty, refreshBarangId = null) {
+      document.getElementById('confirmDeleteTitle').textContent = 'Hapus Catatan Mutasi?';
+      document.getElementById('confirmDeleteText').textContent = `Hapus catatan mutasi ${tipe} (${qty} pcs) untuk "${nama}"? Stok barang terkait akan otomatis disesuaikan.`;
+      document.getElementById('btnConfirmDeleteAction').onclick = () => doDeleteTransaksi(id, nama, refreshBarangId);
+      openModal('modalConfirmDelete');
+    }
+
+    async function doDeleteTransaksi(id, nama, refreshBarangId = null) {
+      try {
+        const res = await fetch(`${API}/api/transaksi?id=${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal menghapus riwayat');
+
+        closeModal('modalConfirmDelete');
+        toast(`Riwayat mutasi "${nama}" berhasil dihapus`);
+
+        await loadCategories();
+        renderTabs();
+
+        if (refreshBarangId) {
+          await openItemHistory(refreshBarangId, nama);
+        }
+
+        if (currentSheet === 'Riwayat') {
+          loadRiwayat(document.getElementById('searchInput').value.trim());
+        } else {
+          loadSheetItems(currentSheet);
+        }
+      } catch (err) {
+        toast(err.message, true);
+      }
     }
 
     // Modal Mutasi

@@ -658,6 +658,17 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // Hapus Riwayat Mutasi / Transaksi
+    if (method === 'DELETE' && pathname === '/api/transaksi') {
+      const id = url.searchParams.get('id');
+      if (!id) {
+        return sendJson(res, 400, { error: 'ID mutasi diperlukan' });
+      }
+
+      db.prepare('DELETE FROM transaksi WHERE id = ?').run(id);
+      return sendJson(res, 200, { message: 'Riwayat mutasi berhasil dihapus' });
+    }
+
     // Riwayat Transaksi per Sheet Kategori
     if (method === 'GET' && pathname === '/api/transaksi') {
       const kategori = url.searchParams.get('kategori') || 'Kardus No 03';
