@@ -336,18 +336,27 @@
       width: 28px;
       height: 28px;
       border-radius: 6px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text-muted);
+      border: 1px solid #FCA5A5;
+      background: #FEF2F2;
+      color: #DC2626;
       cursor: pointer;
-      font-size: 13px;
       transition: all 0.15s ease;
-      margin-left: 2px;
+      margin-left: 4px;
+      padding: 0;
+      box-shadow: 0 1px 2px rgba(220, 38, 38, 0.06);
+    }
+    .btn-delete-item svg {
+      width: 14px;
+      height: 14px;
+      stroke: #DC2626;
+      transition: stroke 0.15s ease;
     }
     .btn-delete-item:hover {
-      background: var(--danger-bg);
-      color: var(--danger);
-      border-color: #F8C8C8;
+      background: #DC2626;
+      border-color: #DC2626;
+    }
+    .btn-delete-item:hover svg {
+      stroke: #FFFFFF;
     }
 
     /* Modal */
@@ -734,8 +743,30 @@
       </div>
 
       <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
-        <button type="button" class="btn btn-secondary btn-sm" style="color:var(--danger); border-color:#F8C8C8;" onclick="deleteCurrentHistoryItem()">🗑 Hapus Barang Ini</button>
+        <button type="button" class="btn btn-secondary btn-sm" style="color:#DC2626; background:#FEF2F2; border-color:#FCA5A5; font-weight:600; display:inline-flex; align-items:center; gap:5px;" onclick="deleteCurrentHistoryItem()">
+          <svg style="width:14px; height:14px; stroke:#DC2626;" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
+          </svg>
+          <span>Hapus Barang Ini</span>
+        </button>
         <button type="button" class="btn btn-secondary" onclick="closeModal('modalItemHistory')">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: KONFIRMASI HAPUS BARANG (IN-APP) -->
+  <div class="modal-overlay" id="modalConfirmDelete">
+    <div class="modal-box" style="max-width: 400px; text-align: center; padding: 26px 22px;">
+      <div style="width: 50px; height: 50px; border-radius: 50%; background: #FEF2F2; border: 1px solid #FECACA; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+        <svg style="width: 24px; height: 24px; stroke: #DC2626;" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
+        </svg>
+      </div>
+      <h3 style="margin: 0 0 8px; font-size: 17px; font-weight: 700;">Hapus Barang?</h3>
+      <p id="confirmDeleteText" style="color: var(--text-muted); font-size: 13px; margin: 0 0 20px; line-height: 1.5;"></p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeModal('modalConfirmDelete')">Batal</button>
+        <button type="button" class="btn" style="flex: 1; background: #DC2626; color: white;" id="btnConfirmDeleteAction">Ya, Hapus</button>
       </div>
     </div>
   </div>
@@ -891,8 +922,10 @@
                   <span class="btn-mutasi-symbol">＋</span>
                   <span>Masuk</span>
                 </button>
-                <button type="button" class="btn-delete-item" title="Hapus Barang" onclick='deleteBarang(${b.id}, "${b.nama.replace(/'/g, "\\'")}")'>
-                  🗑
+                <button type="button" class="btn-delete-item" title="Hapus Barang" onclick='confirmDeleteBarang(${b.id}, "${b.nama.replace(/'/g, "\\'")}")'>
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/>
+                  </svg>
                 </button>
               </div>
             </td>
@@ -996,16 +1029,21 @@
       }
     }
 
-    async function deleteBarang(id, nama) {
-      if (!confirm(`Yakin ingin menghapus barang "${nama}"?`)) return;
+    function confirmDeleteBarang(id, nama) {
+      document.getElementById('confirmDeleteText').textContent = `Apakah Anda yakin ingin menghapus "${nama}" dari daftar persediaan?`;
+      document.getElementById('btnConfirmDeleteAction').onclick = () => doDeleteBarang(id, nama);
+      openModal('modalConfirmDelete');
+    }
 
+    async function doDeleteBarang(id, nama) {
       try {
         const res = await fetch(`${API}/api/barang?id=${id}`, { method: 'DELETE' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Gagal menghapus barang');
 
-        toast(`Barang "${nama}" berhasil dihapus`);
+        closeModal('modalConfirmDelete');
         closeModal('modalItemHistory');
+        toast(`Barang "${nama}" berhasil dihapus`);
         await loadCategories();
         renderTabs();
         loadSheetItems(currentSheet);
@@ -1016,7 +1054,7 @@
 
     function deleteCurrentHistoryItem() {
       if (!currentHistoryItem) return;
-      deleteBarang(currentHistoryItem.id, currentHistoryItem.nama);
+      confirmDeleteBarang(currentHistoryItem.id, currentHistoryItem.nama);
     }
 
     // Modal Mutasi
