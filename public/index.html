@@ -357,6 +357,17 @@
       color: #C2410C;
       border: 1px solid #FFE0B2;
     }
+    .edit-badge {
+      display: inline-block;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--gold-surface);
+      color: var(--gold);
+      border: 1px solid #E2D3BE;
+    }
     .item-row {
       cursor: pointer;
       transition: background 0.12s ease;
@@ -595,22 +606,33 @@
     /* Toast */
     .toast-box {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 200;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 300;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
     }
     .toast {
       background: var(--surface);
       border: 1px solid var(--border);
       border-left: 4px solid var(--brand);
-      padding: 10px 14px;
-      border-radius: 6px;
+      padding: 12px 20px;
+      border-radius: 8px;
       box-shadow: var(--shadow-modal);
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
+      min-width: 220px;
+      max-width: 420px;
+      text-align: center;
+      animation: toast-in 0.16s ease-out;
+    }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(8px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
     .toast.toast-error { border-left-color: var(--danger); }
   </style>
@@ -1080,7 +1102,7 @@
       const thead = document.getElementById('tableHead');
       const tbody = document.getElementById('tableBody');
       const isSemua = (sheetName === 'Semua' || sheetName === 'Stok Habis' || sheetName === 'Semua Kardus');
-      tbody.innerHTML = `<tr><td colspan="${isSemua ? 7 : 6}" style="text-align:center; padding:24px;">Memuat barang...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${isSemua ? 8 : 7}" style="text-align:center; padding:24px;">Memuat barang...</td></tr>`;
 
       thead.innerHTML = `
         <tr>
@@ -1090,6 +1112,7 @@
           <th style="width:110px; white-space:nowrap;">PIC IN</th>
           <th style="width:110px; white-space:nowrap;">PIC OUT</th>
           <th style="width:100px; text-align:right; white-space:nowrap;">Sisa Stok</th>
+          <th style="width:120px; white-space:nowrap;">Last Edit By</th>
           <th style="width:215px; text-align:center; white-space:nowrap;">Catat Mutasi</th>
         </tr>
       `;
@@ -1114,14 +1137,14 @@
         }
         renderItemTable(currentItems);
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="${isSemua ? 7 : 6}" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat barang.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${isSemua ? 8 : 7}" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat barang.</td></tr>`;
       }
     }
 
     function renderItemTable(items) {
       const tbody = document.getElementById('tableBody');
       const isSemua = (currentSheet === 'Semua' || currentSheet === 'Stok Habis' || currentSheet === 'Semua Kardus');
-      const colspan = isSemua ? 7 : 6;
+      const colspan = isSemua ? 8 : 7;
 
       if (items.length === 0) {
         const emptyMsg = currentSheet === 'Stok Habis'
@@ -1135,6 +1158,9 @@
         const stokClass = b.stok <= 0 ? 'stock-zero' : 'stock-has';
         const picInBadge = b.last_in_pic ? `<span class="badge-pic badge-pic-in" title="Masuk: ${b.last_in_date || ''}">${b.last_in_pic}</span>` : `<span style="color:var(--text-muted);">-</span>`;
         const picOutBadge = b.last_out_pic ? `<span class="badge-pic badge-pic-out" title="Keluar: ${b.last_out_date || ''}">${b.last_out_pic}</span>` : `<span style="color:var(--text-muted);">-</span>`;
+        const editBadge = b.last_edit_by
+          ? `<span class="edit-badge" title="Terakhir diubah oleh ${b.last_edit_by}">${b.last_edit_by}</span>`
+          : `<span style="color:var(--text-muted);">-</span>`;
 
         return `
           <tr class="item-row" onclick="openItemHistory(${b.id}, '${b.nama.replace(/'/g, "\\'")}')">
@@ -1144,6 +1170,7 @@
             <td style="white-space:nowrap;">${picInBadge}</td>
             <td style="white-space:nowrap;">${picOutBadge}</td>
             <td style="text-align:right;"><span class="stock-val ${stokClass}">${b.stok}</span></td>
+            <td style="white-space:nowrap;">${editBadge}</td>
             <td style="text-align:center;" onclick="event.stopPropagation()">
               <div class="btn-mutasi-wrap">
                 <button type="button" class="btn-mutasi btn-mutasi-keluar" onclick='openTxModal(${JSON.stringify(b)}, "KELUAR")'>
@@ -1193,15 +1220,16 @@
           <th style="width:130px; white-space:nowrap;">Kategori</th>
           <th style="width:80px; text-align:right; white-space:nowrap;">Qty</th>
           <th style="width:140px; white-space:nowrap;">PIC / Pengambil</th>
+          <th style="width:120px; white-space:nowrap;">Last Edit By</th>
           <th style="width:60px; text-align:center; white-space:nowrap;">Aksi</th>
         </tr>
       `;
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px;">Memuat riwayat...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px;">Memuat riwayat...</td></tr>`;
 
       try {
         const data = await fetch(`${API}/api/transaksi?kategori=Semua&search=${encodeURIComponent(search)}`).then(r => r.json());
         if (data.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);">Belum ada riwayat mutasi.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-muted);">Belum ada riwayat mutasi.</td></tr>`;
           return;
         }
 
@@ -1215,6 +1243,7 @@
               <td style="white-space:nowrap;"><span class="cat-badge">${r.kategori_nama}</span></td>
               <td style="text-align:right; font-weight:700;">${r.qty}</td>
               <td style="white-space:nowrap;">${r.pic || '-'}</td>
+              <td style="white-space:nowrap;">${r.last_edit_by ? `<span class="edit-badge">${r.last_edit_by}</span>` : '-'}</td>
               <td style="text-align:center; white-space:nowrap;">
                 <button type="button" class="btn-delete-item" title="Hapus Riwayat Ini" onclick='confirmDeleteTransaksi(${r.id}, "${r.nama.replace(/'/g, "\\'")}", "${r.tipe}", ${r.qty})'>
                   <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1226,7 +1255,7 @@
           `;
         }).join('');
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat riwayat.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat riwayat.</td></tr>`;
       }
     }
 

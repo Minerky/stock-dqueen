@@ -38,6 +38,16 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_transaksi_tgl ON transaksi(tanggal);
 `);
 
+// Audit: siapa terakhir kali mengubah data
+function ensureColumn(table, column) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!cols.some(c => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT NOT NULL DEFAULT ''`);
+  }
+}
+ensureColumn('barang', 'last_edit_by');
+ensureColumn('transaksi', 'last_edit_by');
+
 // 7 Kategori sheet persediaan
 const defaultCategories = ['Kardus No 03', 'Kardus No 25', 'Nampan', 'Standing', 'Kantor', 'Pita', 'Box'];
 const existCat = db.prepare('SELECT COUNT(*) as cnt FROM kategori').get();
@@ -210,7 +220,7 @@ function buildInventorySheetXml(rows) {
   const lastRow = Math.max(rows.length + 1, 1);
   let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <dimension ref="A1:H${lastRow}"/>
+  <dimension ref="A1:I${lastRow}"/>
   <sheetViews>
     <sheetView workbookViewId="0">
       <pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>
@@ -227,6 +237,7 @@ function buildInventorySheetXml(rows) {
     <col min="6" max="6" width="14" customWidth="1"/>
     <col min="7" max="7" width="16" customWidth="1"/>
     <col min="8" max="8" width="14" customWidth="1"/>
+    <col min="9" max="9" width="16" customWidth="1"/>
   </cols>
   <sheetData>
     <row r="1" ht="26" customHeight="1">
@@ -238,6 +249,7 @@ function buildInventorySheetXml(rows) {
       <c r="F1" t="inlineStr" s="1"><is><t>Total Keluar</t></is></c>
       <c r="G1" t="inlineStr" s="1"><is><t>PIC OUT</t></is></c>
       <c r="H1" t="inlineStr" s="1"><is><t>Sisa Stok</t></is></c>
+      <c r="I1" t="inlineStr" s="1"><is><t>Last Edit By</t></is></c>
     </row>`;
 
   let rNum = 2;
@@ -258,6 +270,7 @@ function buildInventorySheetXml(rows) {
       <c r="F${rNum}" s="${sQty}"><v>${r.total_keluar || 0}</v></c>
       <c r="G${rNum}" t="inlineStr" s="${sPic}"><is><t>${escapeXml(r.pic_out || '-')}</t></is></c>
       <c r="H${rNum}" s="${sQty}"><v>${r.sisa_stok || 0}</v></c>
+      <c r="I${rNum}" t="inlineStr" s="${sPic}"><is><t>${escapeXml(r.last_edit_by || '-')}</t></is></c>
     </row>`;
     rNum++;
   }
@@ -266,7 +279,7 @@ function buildInventorySheetXml(rows) {
   </sheetData>`;
   if (rows.length > 0) {
     xml += `
-  <autoFilter ref="A1:H${lastRow}"/>`;
+  <autoFilter ref="A1:I${lastRow}"/>`;
   }
   xml += `
 </worksheet>`;
@@ -277,7 +290,7 @@ function buildHistorySheetXml(rows) {
   const lastRow = Math.max(rows.length + 1, 1);
   let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <dimension ref="A1:G${lastRow}"/>
+  <dimension ref="A1:H${lastRow}"/>
   <sheetViews>
     <sheetView workbookViewId="0">
       <pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>
@@ -293,6 +306,7 @@ function buildHistorySheetXml(rows) {
     <col min="5" max="5" width="38" customWidth="1"/>
     <col min="6" max="6" width="12" customWidth="1"/>
     <col min="7" max="7" width="20" customWidth="1"/>
+    <col min="8" max="8" width="16" customWidth="1"/>
   </cols>
   <sheetData>
     <row r="1" ht="26" customHeight="1">
@@ -303,6 +317,7 @@ function buildHistorySheetXml(rows) {
       <c r="E1" t="inlineStr" s="1"><is><t>Nama Barang</t></is></c>
       <c r="F1" t="inlineStr" s="1"><is><t>Qty</t></is></c>
       <c r="G1" t="inlineStr" s="1"><is><t>PIC</t></is></c>
+      <c r="H1" t="inlineStr" s="1"><is><t>Last Edit By</t></is></c>
     </row>`;
 
   let rNum = 2;
@@ -328,6 +343,7 @@ function buildHistorySheetXml(rows) {
       <c r="E${rNum}" t="inlineStr" s="${sLeft}"><is><t>${escapeXml(r.nama || '-')}</t></is></c>
       <c r="F${rNum}" s="${sQty}"><v>${r.qty || 0}</v></c>
       <c r="G${rNum}" t="inlineStr" s="${sPic}"><is><t>${escapeXml(r.pic || '-')}</t></is></c>
+      <c r="H${rNum}" t="inlineStr" s="${sPic}"><is><t>${escapeXml(r.last_edit_by || '-')}</t></is></c>
     </row>`;
     rNum++;
   }
@@ -336,7 +352,7 @@ function buildHistorySheetXml(rows) {
   </sheetData>`;
   if (rows.length > 0) {
     xml += `
-  <autoFilter ref="A1:G${lastRow}"/>`;
+  <autoFilter ref="A1:H${lastRow}"/>`;
   }
   xml += `
 </worksheet>`;
@@ -584,6 +600,7 @@ const server = http.createServer(async (req, res) => {
           b.id, b.nama,
           k.nama as kategori_nama,
           COALESCE(s.stok, 0) as stok,
+          b.last_edit_by,
           COALESCE(last_out.pic, '') as last_out_pic,
           COALESCE(last_out.tanggal, '') as last_out_date,
           COALESCE(last_in.pic, '') as last_in_pic,
@@ -640,7 +657,8 @@ const server = http.createServer(async (req, res) => {
 
     // Tambah Barang Baru
     if (method === 'POST' && pathname === '/api/barang') {
-      if (!requireAuth(req, res)) return;
+      const user = requireAuth(req, res);
+      if (!user) return;
       const body = await parseBody(req);
       const { kategori, nama, saldo_awal, pic } = body;
 
@@ -652,9 +670,9 @@ const server = http.createServer(async (req, res) => {
       const catId = catRow ? catRow.id : 1;
 
       const insertRes = db.prepare(`
-        INSERT INTO barang (nama, subkategori_id, aktif)
-        VALUES (?, ?, 1)
-      `).run(nama.trim(), catId);
+        INSERT INTO barang (nama, subkategori_id, aktif, last_edit_by)
+        VALUES (?, ?, 1, ?)
+      `).run(nama.trim(), catId, user.nama);
 
       const newId = Number(insertRes.lastInsertRowid);
       const initialStock = parseQty(saldo_awal);
@@ -662,28 +680,30 @@ const server = http.createServer(async (req, res) => {
       const today = new Date().toISOString().slice(0, 10);
 
       db.prepare(`
-        INSERT INTO transaksi (barang_id, tanggal, tipe, qty, pic)
-        VALUES (?, ?, 'AWAL', ?, ?)
-      `).run(newId, today, Math.max(0, initialStock), picName);
+        INSERT INTO transaksi (barang_id, tanggal, tipe, qty, pic, last_edit_by)
+        VALUES (?, ?, 'AWAL', ?, ?, ?)
+      `).run(newId, today, Math.max(0, initialStock), picName, user.nama);
 
       return sendJson(res, 201, { id: newId, message: 'Barang berhasil disimpan' });
     }
 
     // Hapus Barang (Soft Delete)
     if (method === 'DELETE' && pathname === '/api/barang') {
-      if (!requireAuth(req, res)) return;
+      const user = requireAuth(req, res);
+      if (!user) return;
       const id = url.searchParams.get('id');
       if (!id) {
         return sendJson(res, 400, { error: 'ID barang diperlukan' });
       }
 
-      db.prepare('UPDATE barang SET aktif = 0 WHERE id = ?').run(id);
+      db.prepare('UPDATE barang SET aktif = 0, last_edit_by = ? WHERE id = ?').run(user.nama, id);
       return sendJson(res, 200, { message: 'Barang berhasil dihapus' });
     }
 
     // Input Mutasi (Masuk / Keluar)
     if (method === 'POST' && pathname === '/api/transaksi') {
-      if (!requireAuth(req, res)) return;
+      const user = requireAuth(req, res);
+      if (!user) return;
       const body = await parseBody(req);
       const { barang_id, tanggal, tipe, qty, pic } = body;
 
@@ -704,9 +724,11 @@ const server = http.createServer(async (req, res) => {
       const currentStock = stockRow ? stockRow.stok : 0;
 
       db.prepare(`
-        INSERT INTO transaksi (barang_id, tanggal, tipe, qty, pic)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(bId, String(tanggal), tipe, parsedQ, (pic || '').trim());
+        INSERT INTO transaksi (barang_id, tanggal, tipe, qty, pic, last_edit_by)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(bId, String(tanggal), tipe, parsedQ, (pic || '').trim(), user.nama);
+
+      db.prepare('UPDATE barang SET last_edit_by = ? WHERE id = ?').run(user.nama, bId);
 
       const sisaStok = tipe === 'KELUAR' ? (currentStock - parsedQ) : (currentStock + parsedQ);
 
@@ -718,13 +740,19 @@ const server = http.createServer(async (req, res) => {
 
     // Hapus Riwayat Mutasi / Transaksi
     if (method === 'DELETE' && pathname === '/api/transaksi') {
-      if (!requireAuth(req, res)) return;
+      const user = requireAuth(req, res);
+      if (!user) return;
       const id = url.searchParams.get('id');
       if (!id) {
         return sendJson(res, 400, { error: 'ID mutasi diperlukan' });
       }
 
+      const txRow = db.prepare('SELECT barang_id FROM transaksi WHERE id = ?').get(id);
       db.prepare('DELETE FROM transaksi WHERE id = ?').run(id);
+      if (txRow) {
+        db.prepare('UPDATE barang SET last_edit_by = ? WHERE id = ?').run(user.nama, txRow.barang_id);
+      }
+
       return sendJson(res, 200, { message: 'Riwayat mutasi berhasil dihapus' });
     }
 
@@ -736,7 +764,7 @@ const server = http.createServer(async (req, res) => {
 
       let sql = `
         SELECT
-          t.id, t.tanggal, t.tipe, t.qty, t.pic,
+          t.id, t.tanggal, t.tipe, t.qty, t.pic, t.last_edit_by,
           b.id as barang_id, b.nama,
           k.nama as kategori_nama
         FROM transaksi t
@@ -780,6 +808,7 @@ const server = http.createServer(async (req, res) => {
             COALESCE(s.total_masuk, 0) as total_masuk,
             COALESCE(s.total_keluar, 0) as total_keluar,
             COALESCE(s.sisa_stok, 0) as sisa_stok,
+            b.last_edit_by,
             COALESCE(last_in.pic, '-') as pic_in,
             COALESCE(last_out.pic, '-') as pic_out
           FROM barang b
@@ -827,7 +856,7 @@ const server = http.createServer(async (req, res) => {
 
       const historyRows = db.prepare(`
         SELECT
-          t.id, t.tanggal, t.tipe, t.qty, t.pic,
+          t.id, t.tanggal, t.tipe, t.qty, t.pic, t.last_edit_by,
           b.nama,
           k.nama as kategori_nama
         FROM transaksi t
