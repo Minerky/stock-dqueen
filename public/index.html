@@ -329,6 +329,26 @@
       color: var(--brand);
       text-decoration: underline;
     }
+    .btn-delete-item {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s ease;
+      margin-left: 2px;
+    }
+    .btn-delete-item:hover {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border-color: #F8C8C8;
+    }
 
     /* Modal */
     .modal-overlay {
@@ -713,7 +733,8 @@
         </table>
       </div>
 
-      <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+      <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+        <button type="button" class="btn btn-secondary btn-sm" style="color:var(--danger); border-color:#F8C8C8;" onclick="deleteCurrentHistoryItem()">🗑 Hapus Barang Ini</button>
         <button type="button" class="btn btn-secondary" onclick="closeModal('modalItemHistory')">Tutup</button>
       </div>
     </div>
@@ -824,7 +845,7 @@
           <th style="width:110px; white-space:nowrap;">PIC IN</th>
           <th style="width:110px; white-space:nowrap;">PIC OUT</th>
           <th style="width:100px; text-align:right; white-space:nowrap;">Sisa Stok</th>
-          <th style="width:180px; text-align:center; white-space:nowrap;">Catat Mutasi</th>
+          <th style="width:215px; text-align:center; white-space:nowrap;">Catat Mutasi</th>
         </tr>
       `;
 
@@ -869,6 +890,9 @@
                 <button type="button" class="btn-mutasi btn-mutasi-masuk" onclick='openTxModal(${JSON.stringify(b)}, "MASUK")'>
                   <span class="btn-mutasi-symbol">＋</span>
                   <span>Masuk</span>
+                </button>
+                <button type="button" class="btn-delete-item" title="Hapus Barang" onclick='deleteBarang(${b.id}, "${b.nama.replace(/'/g, "\\'")}")'>
+                  🗑
                 </button>
               </div>
             </td>
@@ -933,8 +957,11 @@
       }
     }
 
+    let currentHistoryItem = null;
+
     // Modal Riwayat Per Barang
     async function openItemHistory(barangId, barangNama) {
+      currentHistoryItem = { id: barangId, nama: barangNama };
       document.getElementById('itemHistoryTitle').textContent = barangNama;
       document.getElementById('itemHistorySubtitle').textContent = 'Memuat riwayat mutasi...';
       const tbody = document.getElementById('itemHistoryBody');
@@ -967,6 +994,29 @@
       } catch (err) {
         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat riwayat.</td></tr>`;
       }
+    }
+
+    async function deleteBarang(id, nama) {
+      if (!confirm(`Yakin ingin menghapus barang "${nama}"?`)) return;
+
+      try {
+        const res = await fetch(`${API}/api/barang?id=${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal menghapus barang');
+
+        toast(`Barang "${nama}" berhasil dihapus`);
+        closeModal('modalItemHistory');
+        await loadCategories();
+        renderTabs();
+        loadSheetItems(currentSheet);
+      } catch (err) {
+        toast(err.message, true);
+      }
+    }
+
+    function deleteCurrentHistoryItem() {
+      if (!currentHistoryItem) return;
+      deleteBarang(currentHistoryItem.id, currentHistoryItem.nama);
     }
 
     // Modal Mutasi

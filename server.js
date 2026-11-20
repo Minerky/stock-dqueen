@@ -613,6 +613,17 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 201, { id: newId, message: 'Barang berhasil disimpan' });
     }
 
+    // Hapus Barang (Soft Delete)
+    if (method === 'DELETE' && pathname === '/api/barang') {
+      const id = url.searchParams.get('id');
+      if (!id) {
+        return sendJson(res, 400, { error: 'ID barang diperlukan' });
+      }
+
+      db.prepare('UPDATE barang SET aktif = 0 WHERE id = ?').run(id);
+      return sendJson(res, 200, { message: 'Barang berhasil dihapus' });
+    }
+
     // Input Mutasi (Masuk / Keluar)
     if (method === 'POST' && pathname === '/api/transaksi') {
       const body = await parseBody(req);
