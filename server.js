@@ -491,6 +491,7 @@ const server = http.createServer(async (req, res) => {
       const rows = db.prepare(`
         SELECT k.id, k.nama,
           COUNT(b.id) as total_barang,
+          SUM(CASE WHEN COALESCE(s.stok, 0) <= 0 THEN 1 ELSE 0 END) as total_habis,
           COALESCE(SUM(s.stok), 0) as total_stok
         FROM kategori k
         LEFT JOIN barang b ON b.aktif = 1 AND b.subkategori_id = k.id

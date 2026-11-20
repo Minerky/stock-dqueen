@@ -153,6 +153,19 @@
       color: var(--gold);
       border-color: #E2D3BE;
     }
+    .sheet-tab.tab-danger { color: var(--danger); }
+    .sheet-tab.tab-danger:hover { background: var(--danger-bg); }
+    .sheet-tab.tab-danger.active {
+      color: var(--danger);
+      border-bottom-color: var(--danger);
+      background: var(--surface);
+    }
+    .sheet-tab.tab-danger .sheet-tab-count {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border-color: #F4C7C7;
+      font-weight: 700;
+    }
 
     /* Container Shell */
     .shell {
@@ -820,9 +833,17 @@
       let totalAll = 0;
       SHEETS.forEach(s => totalAll += (categoriesMeta[s]?.total_barang || 0));
 
+      let totalHabis = 0;
+      SHEETS.forEach(s => totalHabis += (categoriesMeta[s]?.total_habis || 0));
+
       let html = `<button class="sheet-tab ${currentSheet === 'Semua' ? 'active' : ''}" onclick="switchSheet('Semua')">
         <span>Semua Barang</span>
         <span class="sheet-tab-count">${totalAll}</span>
+      </button>`;
+
+      html += `<button class="sheet-tab tab-danger ${currentSheet === 'Stok Habis' ? 'active' : ''}" onclick="switchSheet('Stok Habis')">
+        <span>⚠️ Stok Habis</span>
+        <span class="sheet-tab-count">${totalHabis}</span>
       </button>`;
 
       html += SHEETS.map(name => {
@@ -856,6 +877,10 @@
         document.getElementById('sheetTitle').textContent = 'Semua Barang Persediaan';
         btnAdd.style.display = 'inline-flex';
         loadSheetItems('Semua');
+      } else if (sheetName === 'Stok Habis') {
+        document.getElementById('sheetTitle').textContent = '⚠️ Barang Stok Habis';
+        btnAdd.style.display = 'inline-flex';
+        loadSheetItems('Stok Habis');
       } else {
         document.getElementById('sheetTitle').textContent = `Sheet: ${sheetName}`;
         btnAdd.style.display = 'inline-flex';
@@ -866,7 +891,7 @@
     async function loadSheetItems(sheetName) {
       const thead = document.getElementById('tableHead');
       const tbody = document.getElementById('tableBody');
-      const isSemua = (sheetName === 'Semua');
+      const isSemua = (sheetName === 'Semua' || sheetName === 'Stok Habis');
       tbody.innerHTML = `<tr><td colspan="${isSemua ? 7 : 6}" style="text-align:center; padding:24px;">Memuat barang...</td></tr>`;
 
       thead.innerHTML = `
@@ -882,8 +907,15 @@
       `;
 
       try {
-        currentItems = await fetch(`${API}/api/barang?kategori=${encodeURIComponent(sheetName)}`).then(r => r.json());
-        document.getElementById('sheetMeta').textContent = `${currentItems.length} barang terdaftar`;
+        currentItems = await fetch(`${API}/api/barang?kategori=${encodeURIComponent(sheetName === 'Stok Habis' ? 'Semua' : sheetName)}`).then(r => r.json());
+        if (sheetName === 'Stok Habis') {
+          currentItems = currentItems.filter(b => Number(b.stok) <= 0);
+          document.getElementById('sheetMeta').textContent = currentItems.length === 0
+            ? 'Semua barang masih tersedia stoknya 🎉'
+            : `${currentItems.length} barang dengan stok habis / minus`;
+        } else {
+          document.getElementById('sheetMeta').textContent = `${currentItems.length} barang terdaftar`;
+        }
         renderItemTable(currentItems);
       } catch (e) {
         tbody.innerHTML = `<tr><td colspan="${isSemua ? 7 : 6}" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat barang.</td></tr>`;
@@ -892,11 +924,14 @@
 
     function renderItemTable(items) {
       const tbody = document.getElementById('tableBody');
-      const isSemua = (currentSheet === 'Semua');
+      const isSemua = (currentSheet === 'Semua' || currentSheet === 'Stok Habis');
       const colspan = isSemua ? 7 : 6;
 
       if (items.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; padding:24px; color:var(--text-muted);">Tidak ada barang yang cocok.</td></tr>`;
+        const emptyMsg = currentSheet === 'Stok Habis'
+          ? '✅ Tidak ada barang yang stoknya habis. Semua persediaan masih aman.'
+          : 'Tidak ada barang yang cocok.';
+        tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; padding:24px; color:var(--text-muted);">${emptyMsg}</td></tr>`;
         return;
       }
 
@@ -1164,6 +1199,8 @@
         toast(`Mutasi ${tipe} berhasil dicatat! Sisa stok: ${data.sisa_stok}`);
         closeModal('modalTx');
         loadPics();
+        await loadCategories();
+        renderTabs();
         if (currentSheet === 'Riwayat') loadRiwayat();
         else loadSheetItems(currentSheet);
       } catch (err) {
