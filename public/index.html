@@ -108,14 +108,14 @@
     .sheet-tabs-inner {
       max-width: 1280px;
       margin: 0 auto;
-      padding: 0 20px;
+      padding: 0 12px;
       display: flex;
       align-items: center;
       flex-wrap: wrap;
-      gap: 0 1px;
+      gap: 0;
     }
     .sheet-tab {
-      padding: 10px 6px;
+      padding: 10px 5px;
       background: transparent;
       border: none;
       border-bottom: 3px solid transparent;
@@ -149,6 +149,18 @@
       border: 1px solid var(--border);
     }
     .sheet-tab.active .sheet-tab-count {
+      background: var(--gold-surface);
+      color: var(--gold);
+      border-color: #E2D3BE;
+    }
+    .sheet-tab.tab-kardus { color: var(--gold); }
+    .sheet-tab.tab-kardus:hover { background: var(--gold-surface); }
+    .sheet-tab.tab-kardus.active {
+      color: var(--gold);
+      border-bottom-color: var(--gold);
+      background: var(--surface);
+    }
+    .sheet-tab.tab-kardus .sheet-tab-count {
       background: var(--gold-surface);
       color: var(--gold);
       border-color: #E2D3BE;
@@ -794,6 +806,10 @@
     let currentItems = [];
     let categoriesMeta = {};
 
+    function isKardusCategory(name) {
+      return (name || '').toLowerCase().includes('kardus');
+    }
+
     function toast(msg, isError = false) {
       const box = document.getElementById('toastBox');
       const el = document.createElement('div');
@@ -836,10 +852,20 @@
       let totalHabis = 0;
       SHEETS.forEach(s => totalHabis += (categoriesMeta[s]?.total_habis || 0));
 
+      const kardusSheets = SHEETS.filter(isKardusCategory);
+      const totalKardus = kardusSheets.reduce((sum, s) => sum + (categoriesMeta[s]?.total_barang || 0), 0);
+
       let html = `<button class="sheet-tab ${currentSheet === 'Semua' ? 'active' : ''}" onclick="switchSheet('Semua')">
         <span>Semua Barang</span>
         <span class="sheet-tab-count">${totalAll}</span>
       </button>`;
+
+      if (kardusSheets.length > 0) {
+        html += `<button class="sheet-tab tab-kardus ${currentSheet === 'Semua Kardus' ? 'active' : ''}" onclick="switchSheet('Semua Kardus')">
+          <span>📦 Kardus</span>
+          <span class="sheet-tab-count">${totalKardus}</span>
+        </button>`;
+      }
 
       html += `<button class="sheet-tab tab-danger ${currentSheet === 'Stok Habis' ? 'active' : ''}" onclick="switchSheet('Stok Habis')">
         <span>⚠️ Stok Habis</span>
@@ -856,7 +882,7 @@
       }).join('');
 
       html += `<button class="sheet-tab ${currentSheet === 'Riwayat' ? 'active' : ''}" onclick="switchSheet('Riwayat')">
-        <span>📜 Riwayat Mutasi</span>
+        <span>📜 Riwayat</span>
       </button>`;
 
       container.innerHTML = html;
@@ -877,6 +903,10 @@
         document.getElementById('sheetTitle').textContent = 'Semua Barang Persediaan';
         btnAdd.style.display = 'inline-flex';
         loadSheetItems('Semua');
+      } else if (sheetName === 'Semua Kardus') {
+        document.getElementById('sheetTitle').textContent = '📦 Keseluruhan Barang Kardus';
+        btnAdd.style.display = 'inline-flex';
+        loadSheetItems('Semua Kardus');
       } else if (sheetName === 'Stok Habis') {
         document.getElementById('sheetTitle').textContent = '⚠️ Barang Stok Habis';
         btnAdd.style.display = 'inline-flex';
@@ -891,7 +921,7 @@
     async function loadSheetItems(sheetName) {
       const thead = document.getElementById('tableHead');
       const tbody = document.getElementById('tableBody');
-      const isSemua = (sheetName === 'Semua' || sheetName === 'Stok Habis');
+      const isSemua = (sheetName === 'Semua' || sheetName === 'Stok Habis' || sheetName === 'Semua Kardus');
       tbody.innerHTML = `<tr><td colspan="${isSemua ? 7 : 6}" style="text-align:center; padding:24px;">Memuat barang...</td></tr>`;
 
       thead.innerHTML = `
@@ -907,12 +937,20 @@
       `;
 
       try {
-        currentItems = await fetch(`${API}/api/barang?kategori=${encodeURIComponent(sheetName === 'Stok Habis' ? 'Semua' : sheetName)}`).then(r => r.json());
+        const apiKategori = (sheetName === 'Stok Habis' || sheetName === 'Semua Kardus') ? 'Semua' : sheetName;
+        currentItems = await fetch(`${API}/api/barang?kategori=${encodeURIComponent(apiKategori)}`).then(r => r.json());
         if (sheetName === 'Stok Habis') {
           currentItems = currentItems.filter(b => Number(b.stok) <= 0);
           document.getElementById('sheetMeta').textContent = currentItems.length === 0
             ? 'Semua barang masih tersedia stoknya 🎉'
             : `${currentItems.length} barang dengan stok habis / minus`;
+        } else if (sheetName === 'Semua Kardus') {
+          currentItems = currentItems.filter(b => isKardusCategory(b.kategori_nama));
+          const totalStok = currentItems.reduce((sum, b) => sum + Number(b.stok || 0), 0);
+          const breakdown = {};
+          currentItems.forEach(b => { breakdown[b.kategori_nama] = (breakdown[b.kategori_nama] || 0) + 1; });
+          const rincian = Object.entries(breakdown).map(([nama, jumlah]) => `${nama} (${jumlah})`).join(' + ');
+          document.getElementById('sheetMeta').textContent = `${currentItems.length} barang · ${rincian} · total stok ${totalStok}`;
         } else {
           document.getElementById('sheetMeta').textContent = `${currentItems.length} barang terdaftar`;
         }
@@ -924,7 +962,7 @@
 
     function renderItemTable(items) {
       const tbody = document.getElementById('tableBody');
-      const isSemua = (currentSheet === 'Semua' || currentSheet === 'Stok Habis');
+      const isSemua = (currentSheet === 'Semua' || currentSheet === 'Stok Habis' || currentSheet === 'Semua Kardus');
       const colspan = isSemua ? 7 : 6;
 
       if (items.length === 0) {
