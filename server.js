@@ -540,8 +540,9 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (search) {
-        sql += ` AND b.nama LIKE ?`;
-        params.push(`%${search}%`);
+        const cleanS = search.replace(/\s+/g, '');
+        sql += ` AND (b.nama LIKE ? OR REPLACE(b.nama, ' ', '') LIKE ?)`;
+        params.push(`%${search}%`, `%${cleanS}%`);
       }
 
       sql += ` ORDER BY b.id ASC`;
@@ -637,9 +638,9 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (search) {
-        sql += ` AND (b.nama LIKE ? OR t.pic LIKE ?)`;
-        const s = `%${search}%`;
-        params.push(s, s);
+        const cleanS = search.replace(/\s+/g, '');
+        sql += ` AND (b.nama LIKE ? OR REPLACE(b.nama, ' ', '') LIKE ? OR t.pic LIKE ?)`;
+        params.push(`%${search}%`, `%${cleanS}%`, `%${search}%`);
       }
 
       sql += ` ORDER BY t.tanggal DESC, t.id DESC LIMIT 150`;

@@ -803,11 +803,16 @@
     }
 
     function filterItems() {
-      const q = document.getElementById('searchInput').value.toLowerCase();
+      const raw = document.getElementById('searchInput').value.trim();
+      const q = raw.toLowerCase();
+      const qClean = q.replace(/\s+/g, '');
       if (currentSheet === 'Riwayat') {
-        loadRiwayat(q);
+        loadRiwayat(raw);
       } else {
-        const filtered = currentItems.filter(b => b.nama.toLowerCase().includes(q));
+        const filtered = currentItems.filter(b => {
+          const nameLower = b.nama.toLowerCase();
+          return nameLower.includes(q) || (qClean && nameLower.replace(/\s+/g, '').includes(qClean));
+        });
         renderItemTable(filtered);
       }
     }
