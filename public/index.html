@@ -287,6 +287,18 @@
     .stock-zero { color: var(--danger); }
     .stock-has { color: var(--brand); }
 
+    .cat-badge {
+      display: inline-block;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+    }
+
     /* Modal */
     .modal-overlay {
       position: fixed;
@@ -660,11 +672,11 @@
     function openModal(id) { document.getElementById(id).classList.add('open'); }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-    // Inisialisasi Sheet Tabs
+    /* Inisialisasi Sheet Tabs */
     async function init() {
       await loadCategories();
       renderTabs();
-      switchSheet('Semua');
+      switchSheet(SHEETS[0] || 'Kardus No 03');
       loadPics();
     }
 
@@ -738,11 +750,11 @@
 
       thead.innerHTML = `
         <tr>
-          <th style="width:50px;">No</th>
+          <th style="width:48px; text-align:center;">No</th>
           <th>Nama Barang</th>
-          ${isSemua ? '<th style="width:110px;">Sheet</th>' : ''}
-          <th style="width:130px; text-align:right;">Sisa Stok</th>
-          <th style="width:180px; text-align:center;">Catat Mutasi</th>
+          ${isSemua ? '<th style="width:130px; white-space:nowrap;">Kategori</th>' : ''}
+          <th style="width:120px; text-align:right; white-space:nowrap;">Sisa Stok</th>
+          <th style="width:180px; text-align:center; white-space:nowrap;">Catat Mutasi</th>
         </tr>
       `;
 
@@ -769,9 +781,9 @@
         const stokClass = b.stok <= 0 ? 'stock-zero' : 'stock-has';
         return `
           <tr>
-            <td style="color:var(--text-muted);">${idx + 1}</td>
+            <td style="color:var(--text-muted); text-align:center;">${idx + 1}</td>
             <td><strong>${b.nama}</strong></td>
-            ${isSemua ? `<td><span style="font-size:11px; background:var(--surface-subtle); padding:2px 7px; border-radius:4px; border:1px solid var(--border); font-weight:600;">${b.kategori_nama}</span></td>` : ''}
+            ${isSemua ? `<td style="white-space:nowrap;"><span class="cat-badge">${b.kategori_nama}</span></td>` : ''}
             <td style="text-align:right;"><span class="stock-val ${stokClass}">${b.stok}</span></td>
             <td style="text-align:center;">
               <div class="btn-mutasi-wrap">
@@ -806,12 +818,12 @@
 
       thead.innerHTML = `
         <tr>
-          <th style="width:90px;">Tanggal</th>
-          <th style="width:70px;">Tipe</th>
+          <th style="width:105px; white-space:nowrap;">Tanggal</th>
+          <th style="width:80px; white-space:nowrap;">Tipe</th>
           <th>Nama Barang</th>
-          <th style="width:90px;">Sheet</th>
-          <th style="width:80px; text-align:right;">Qty</th>
-          <th>PIC / Pengambil</th>
+          <th style="width:130px; white-space:nowrap;">Kategori</th>
+          <th style="width:80px; text-align:right; white-space:nowrap;">Qty</th>
+          <th style="width:140px; white-space:nowrap;">PIC / Pengambil</th>
         </tr>
       `;
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px;">Memuat riwayat...</td></tr>`;
@@ -827,12 +839,12 @@
           const tipeColor = r.tipe === 'MASUK' ? 'var(--success)' : (r.tipe === 'KELUAR' ? 'var(--danger)' : 'var(--gold)');
           return `
             <tr>
-              <td>${r.tanggal}</td>
-              <td style="font-weight:700; color:${tipeColor};">${r.tipe}</td>
+              <td style="white-space:nowrap;">${r.tanggal}</td>
+              <td style="font-weight:700; color:${tipeColor}; white-space:nowrap;">${r.tipe}</td>
               <td><strong>${r.nama}</strong></td>
-              <td><span style="font-size:11px; background:var(--surface-subtle); padding:2px 6px; border-radius:4px; border:1px solid var(--border);">${r.kategori_nama}</span></td>
+              <td style="white-space:nowrap;"><span class="cat-badge">${r.kategori_nama}</span></td>
               <td style="text-align:right; font-weight:700;">${r.qty}</td>
-              <td>${r.pic || '-'}</td>
+              <td style="white-space:nowrap;">${r.pic || '-'}</td>
             </tr>
           `;
         }).join('');
