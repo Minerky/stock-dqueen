@@ -553,10 +553,13 @@ const server = http.createServer(async (req, res) => {
         LEFT JOIN (
           SELECT t3.barang_id, t3.pic, t3.tanggal
           FROM transaksi t3
-          WHERE t3.tipe = 'MASUK' AND t3.pic != ''
+          WHERE (t3.tipe = 'MASUK' OR (t3.tipe = 'AWAL' AND t3.pic != 'Sistem' AND t3.pic != 'Saldo Awal'))
+            AND t3.pic != ''
             AND t3.id = (
               SELECT MAX(t4.id) FROM transaksi t4
-              WHERE t4.barang_id = t3.barang_id AND t4.tipe = 'MASUK' AND t4.pic != ''
+              WHERE t4.barang_id = t3.barang_id
+                AND (t4.tipe = 'MASUK' OR (t4.tipe = 'AWAL' AND t4.pic != 'Sistem' AND t4.pic != 'Saldo Awal'))
+                AND t4.pic != ''
             )
         ) last_in ON b.id = last_in.barang_id
         WHERE b.aktif = 1
@@ -574,7 +577,7 @@ const server = http.createServer(async (req, res) => {
         params.push(`%${search}%`, `%${cleanS}%`);
       }
 
-      sql += ` ORDER BY b.id ASC`;
+      sql += ` ORDER BY b.id DESC`;
 
       const rows = db.prepare(sql).all(...params);
       return sendJson(res, 200, rows);
@@ -583,7 +586,7 @@ const server = http.createServer(async (req, res) => {
     // Tambah Barang Baru
     if (method === 'POST' && pathname === '/api/barang') {
       const body = await parseBody(req);
-      const { kategori, nama, saldo_awal } = body;
+      const { kategori, nama, saldo_awal, pic } = body;
 
       if (!nama || !nama.trim()) {
         return sendJson(res, 400, { error: 'Nama barang wajib diisi' });
@@ -599,13 +602,13 @@ const server = http.createServer(async (req, res) => {
 
       const newId = Number(insertRes.lastInsertRowid);
       const initialStock = parseQty(saldo_awal);
-      if (initialStock > 0) {
-        const today = new Date().toISOString().slice(0, 10);
-        db.prepare(`
-          INSERT INTO transaksi (barang_id, tanggal, tipe, qty, pic)
-          VALUES (?, ?, 'AWAL', ?, 'Saldo Awal')
-        `).run(newId, today, initialStock);
-      }
+      const picName = (pic || '').trim() || 'Sistem';
+      const today = new Date().toISOString().slice(0, 10);
+
+      db.prepare(`
+        INSERT INTO transaksi (barang_id, tanggal, tipe, qty, pic)
+        VALUES (?, ?, 'AWAL', ?, ?)
+      `).run(newId, today, Math.max(0, initialStock), picName);
 
       return sendJson(res, 201, { id: newId, message: 'Barang berhasil disimpan' });
     }
@@ -712,10 +715,13 @@ const server = http.createServer(async (req, res) => {
           LEFT JOIN (
             SELECT t1.barang_id, t1.pic
             FROM transaksi t1
-            WHERE t1.tipe = 'MASUK' AND t1.pic != ''
+            WHERE (t1.tipe = 'MASUK' OR (t1.tipe = 'AWAL' AND t1.pic != 'Sistem' AND t1.pic != 'Saldo Awal'))
+              AND t1.pic != ''
               AND t1.id = (
                 SELECT MAX(t2.id) FROM transaksi t2
-                WHERE t2.barang_id = t1.barang_id AND t2.tipe = 'MASUK' AND t2.pic != ''
+                WHERE t2.barang_id = t1.barang_id
+                  AND (t2.tipe = 'MASUK' OR (t2.tipe = 'AWAL' AND t2.pic != 'Sistem' AND t2.pic != 'Saldo Awal'))
+                  AND t2.pic != ''
               )
           ) last_in ON b.id = last_in.barang_id
           LEFT JOIN (
@@ -728,7 +734,7 @@ const server = http.createServer(async (req, res) => {
               )
           ) last_out ON b.id = last_out.barang_id
           WHERE k.nama = ? AND b.aktif = 1
-          ORDER BY b.id ASC
+          ORDER BY b.id DESC
         `).all(cat);
 
         sheets.push({

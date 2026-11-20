@@ -673,6 +673,10 @@
           <label class="form-label">Stok Awal</label>
           <input type="number" id="bSaldoAwal" class="form-control" min="0" value="0">
         </div>
+        <div class="form-group">
+          <label class="form-label">PIC / Petugas Penginput</label>
+          <input type="text" id="bPic" class="form-control" list="picList" placeholder="Nama petugas / PIC..." required>
+        </div>
 
         <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('modalBarang')">Batal</button>
@@ -1047,12 +1051,13 @@
       const kat = document.getElementById('bKategori')?.value || currentSheet;
       const nama = document.getElementById('bNama').value;
       const saldo_awal = document.getElementById('bSaldoAwal').value;
+      const pic = document.getElementById('bPic').value;
 
       try {
         const res = await fetch(`${API}/api/barang`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ kategori: kat, nama, saldo_awal })
+          body: JSON.stringify({ kategori: kat, nama, saldo_awal, pic })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Gagal menambah barang');
@@ -1062,6 +1067,7 @@
         await loadCategories();
         renderTabs();
         loadSheetItems(currentSheet);
+        loadPics();
       } catch (err) {
         toast(err.message, true);
       }
