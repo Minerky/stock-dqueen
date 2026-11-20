@@ -613,7 +613,8 @@
         <div class="form-group" id="groupKategoriBarang">
           <label class="form-label">Kategori / Sheet</label>
           <select id="bKategori" class="form-control">
-            <option value="Kardus">Kardus</option>
+            <option value="Kardus No 03">Kardus No 03</option>
+            <option value="Kardus No 25">Kardus No 25</option>
             <option value="Nampan">Nampan</option>
             <option value="Standing">Standing</option>
             <option value="Kantor">Kantor</option>
@@ -642,8 +643,8 @@
 
   <script>
     const API = 'http://localhost:3001';
-    const SHEETS = ['Kardus', 'Nampan', 'Standing', 'Kantor', 'Pita', 'Box'];
-    let currentSheet = 'Kardus';
+    let SHEETS = ['Kardus No 03', 'Kardus No 25', 'Nampan', 'Standing', 'Kantor', 'Pita', 'Box'];
+    let currentSheet = 'Kardus No 03';
     let currentItems = [];
     let categoriesMeta = {};
 
@@ -670,6 +671,13 @@
     async function loadCategories() {
       try {
         const cats = await fetch(`${API}/api/kategori`).then(r => r.json());
+        if (Array.isArray(cats) && cats.length > 0) {
+          SHEETS = cats.map(c => c.nama);
+          const sel = document.getElementById('bKategori');
+          if (sel) {
+            sel.innerHTML = SHEETS.map(s => `<option value="${s}">${s}</option>`).join('');
+          }
+        }
         cats.forEach(c => categoriesMeta[c.nama] = c);
       } catch (e) {}
     }
@@ -898,7 +906,7 @@
       document.getElementById('barangForm').reset();
       const catSelect = document.getElementById('bKategori');
       if (catSelect) {
-        catSelect.value = !isSemua ? currentSheet : 'Kardus';
+        catSelect.value = !isSemua ? currentSheet : (SHEETS[0] || 'Kardus No 03');
       }
       openModal('modalBarang');
       setTimeout(() => document.getElementById('bNama').focus(), 150);

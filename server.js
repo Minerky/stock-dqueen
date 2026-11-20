@@ -37,8 +37,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_transaksi_tgl ON transaksi(tanggal);
 `);
 
-// 6 Kategori tepat sesuai sheet Excel asli
-const defaultCategories = ['Kardus', 'Nampan', 'Standing', 'Kantor', 'Pita', 'Box'];
+// 7 Kategori sheet persediaan
+const defaultCategories = ['Kardus No 03', 'Kardus No 25', 'Nampan', 'Standing', 'Kantor', 'Pita', 'Box'];
 const existCat = db.prepare('SELECT COUNT(*) as cnt FROM kategori').get();
 if (!existCat || existCat.cnt === 0) {
   const insertCat = db.prepare('INSERT INTO kategori (nama, urutan) VALUES (?, ?)');
@@ -515,7 +515,7 @@ const server = http.createServer(async (req, res) => {
     // Barang per Kategori
     if (method === 'GET' && pathname === '/api/barang') {
       const search = url.searchParams.get('search') || '';
-      const kategori = url.searchParams.get('kategori') || 'Kardus';
+      const kategori = url.searchParams.get('kategori') || 'Kardus No 03';
 
       let sql = `
         SELECT
@@ -559,7 +559,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { error: 'Nama barang wajib diisi' });
       }
 
-      const catRow = db.prepare('SELECT id FROM kategori WHERE nama = ?').get(kategori || 'Kardus');
+      const catRow = db.prepare('SELECT id FROM kategori WHERE nama = ?').get(kategori || 'Kardus No 03');
       const catId = catRow ? catRow.id : 1;
 
       const insertRes = db.prepare(`
@@ -616,7 +616,7 @@ const server = http.createServer(async (req, res) => {
 
     // Riwayat Transaksi per Sheet Kategori
     if (method === 'GET' && pathname === '/api/transaksi') {
-      const kategori = url.searchParams.get('kategori') || 'Kardus';
+      const kategori = url.searchParams.get('kategori') || 'Kardus No 03';
       const search = url.searchParams.get('search') || '';
 
       let sql = `
@@ -648,9 +648,9 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, rows);
     }
 
-    // Export Excel (6 Sheet Terpisah Persis Sesuai Excel Asli + Riwayat Mutasi)
+    // Export Excel (Sheet Terpisah Sesuai Kategori + Riwayat Mutasi)
     if (method === 'GET' && pathname === '/api/laporan') {
-      const categories = ['Kardus', 'Nampan', 'Standing', 'Kantor', 'Pita', 'Box'];
+      const categories = ['Kardus No 03', 'Kardus No 25', 'Nampan', 'Standing', 'Kantor', 'Pita', 'Box'];
       const sheets = [];
 
       for (const cat of categories) {
