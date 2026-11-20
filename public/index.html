@@ -299,6 +299,37 @@
       color: var(--text-main);
     }
 
+    .badge-pic {
+      display: inline-block;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: capitalize;
+    }
+    .badge-pic-in {
+      background: #E8F5E9;
+      color: #166534;
+      border: 1px solid #C8E6C9;
+    }
+    .badge-pic-out {
+      background: #FFF3E0;
+      color: #C2410C;
+      border: 1px solid #FFE0B2;
+    }
+    .item-row {
+      cursor: pointer;
+      transition: background 0.12s ease;
+    }
+    .item-name-link {
+      cursor: pointer;
+    }
+    .item-name-link:hover {
+      color: var(--brand);
+      text-decoration: underline;
+    }
+
     /* Modal */
     .modal-overlay {
       position: fixed;
@@ -600,7 +631,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">PIC / Nama Pengambil</label>
+          <label class="form-label" id="txPicLabel">PIC / Nama Pengambil</label>
           <input type="text" id="txPic" class="form-control" list="picList" placeholder="Nama pengambil atau ket..." required>
           <datalist id="picList"></datalist>
         </div>
@@ -648,6 +679,39 @@
           <button type="submit" class="btn btn-brand">Simpan Barang</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: RIWAYAT MUTASI PER BARANG -->
+  <div class="modal-overlay" id="modalItemHistory">
+    <div class="modal-box" style="max-width: 580px;">
+      <div class="modal-head">
+        <div>
+          <h3 id="itemHistoryTitle" style="margin:0;">Riwayat Mutasi Barang</h3>
+          <div id="itemHistorySubtitle" style="font-size:12px; color:var(--text-muted); margin-top:3px;">Catatan keluar masuk dan PIC</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('modalItemHistory')">&times;</button>
+      </div>
+
+      <div style="max-height: 380px; overflow-y: auto; margin-top: 12px; border: 1px solid var(--border); border-radius: var(--radius);">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="padding: 8px 12px;">Tanggal</th>
+              <th style="padding: 8px 12px;">Tipe</th>
+              <th style="padding: 8px 12px; text-align: right;">Qty</th>
+              <th style="padding: 8px 12px;">PIC</th>
+            </tr>
+          </thead>
+          <tbody id="itemHistoryBody">
+            <tr><td colspan="4" style="text-align: center; padding: 20px;">Memuat riwayat...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalItemHistory')">Tutup</button>
+      </div>
     </div>
   </div>
 
@@ -746,14 +810,16 @@
       const thead = document.getElementById('tableHead');
       const tbody = document.getElementById('tableBody');
       const isSemua = (sheetName === 'Semua');
-      tbody.innerHTML = `<tr><td colspan="${isSemua ? 5 : 4}" style="text-align:center; padding:24px;">Memuat barang...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${isSemua ? 7 : 6}" style="text-align:center; padding:24px;">Memuat barang...</td></tr>`;
 
       thead.innerHTML = `
         <tr>
           <th style="width:48px; text-align:center;">No</th>
           <th>Nama Barang</th>
           ${isSemua ? '<th style="width:130px; white-space:nowrap;">Kategori</th>' : ''}
-          <th style="width:120px; text-align:right; white-space:nowrap;">Sisa Stok</th>
+          <th style="width:110px; white-space:nowrap;">PIC IN</th>
+          <th style="width:110px; white-space:nowrap;">PIC OUT</th>
+          <th style="width:100px; text-align:right; white-space:nowrap;">Sisa Stok</th>
           <th style="width:180px; text-align:center; white-space:nowrap;">Catat Mutasi</th>
         </tr>
       `;
@@ -763,14 +829,14 @@
         document.getElementById('sheetMeta').textContent = `${currentItems.length} barang terdaftar`;
         renderItemTable(currentItems);
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="${isSemua ? 5 : 4}" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat barang.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${isSemua ? 7 : 6}" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat barang.</td></tr>`;
       }
     }
 
     function renderItemTable(items) {
       const tbody = document.getElementById('tableBody');
       const isSemua = (currentSheet === 'Semua');
-      const colspan = isSemua ? 5 : 4;
+      const colspan = isSemua ? 7 : 6;
 
       if (items.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; padding:24px; color:var(--text-muted);">Tidak ada barang yang cocok.</td></tr>`;
@@ -779,13 +845,18 @@
 
       tbody.innerHTML = items.map((b, idx) => {
         const stokClass = b.stok <= 0 ? 'stock-zero' : 'stock-has';
+        const picInBadge = b.last_in_pic ? `<span class="badge-pic badge-pic-in" title="Masuk: ${b.last_in_date || ''}">${b.last_in_pic}</span>` : `<span style="color:var(--text-muted);">-</span>`;
+        const picOutBadge = b.last_out_pic ? `<span class="badge-pic badge-pic-out" title="Keluar: ${b.last_out_date || ''}">${b.last_out_pic}</span>` : `<span style="color:var(--text-muted);">-</span>`;
+
         return `
-          <tr>
+          <tr class="item-row" onclick="openItemHistory(${b.id}, '${b.nama.replace(/'/g, "\\'")}')">
             <td style="color:var(--text-muted); text-align:center;">${idx + 1}</td>
-            <td><strong>${b.nama}</strong></td>
+            <td><strong class="item-name-link" title="Klik untuk riwayat mutasi">${b.nama}</strong></td>
             ${isSemua ? `<td style="white-space:nowrap;"><span class="cat-badge">${b.kategori_nama}</span></td>` : ''}
+            <td style="white-space:nowrap;">${picInBadge}</td>
+            <td style="white-space:nowrap;">${picOutBadge}</td>
             <td style="text-align:right;"><span class="stock-val ${stokClass}">${b.stok}</span></td>
-            <td style="text-align:center;">
+            <td style="text-align:center;" onclick="event.stopPropagation()">
               <div class="btn-mutasi-wrap">
                 <button type="button" class="btn-mutasi btn-mutasi-keluar" onclick='openTxModal(${JSON.stringify(b)}, "KELUAR")'>
                   <span class="btn-mutasi-symbol">−</span>
@@ -858,6 +929,42 @@
       }
     }
 
+    // Modal Riwayat Per Barang
+    async function openItemHistory(barangId, barangNama) {
+      document.getElementById('itemHistoryTitle').textContent = barangNama;
+      document.getElementById('itemHistorySubtitle').textContent = 'Memuat riwayat mutasi...';
+      const tbody = document.getElementById('itemHistoryBody');
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">Memuat riwayat...</td></tr>`;
+      openModal('modalItemHistory');
+
+      try {
+        const txs = await fetch(`${API}/api/transaksi?barang_id=${barangId}`).then(r => r.json());
+        document.getElementById('itemHistorySubtitle').textContent = `${txs.length} catatan mutasi`;
+        if (txs.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">Belum ada riwayat mutasi.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = txs.map(t => {
+          const tipeColor = t.tipe === 'MASUK' ? 'var(--success)' : (t.tipe === 'KELUAR' ? 'var(--danger)' : 'var(--gold)');
+          const picBadge = t.tipe === 'MASUK'
+            ? `<span class="badge-pic badge-pic-in">${t.pic || '-'}</span>`
+            : (t.tipe === 'KELUAR' ? `<span class="badge-pic badge-pic-out">${t.pic || '-'}</span>` : (t.pic || '-'));
+
+          return `
+            <tr>
+              <td style="padding: 8px 12px; white-space:nowrap; font-size:12px;">${t.tanggal}</td>
+              <td style="padding: 8px 12px; font-weight:700; color:${tipeColor}; white-space:nowrap; font-size:12px;">${t.tipe}</td>
+              <td style="padding: 8px 12px; text-align:right; font-weight:700; font-size:12px;">${t.qty}</td>
+              <td style="padding: 8px 12px; font-size:12px;">${picBadge}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--danger); padding:20px;">Gagal memuat riwayat.</td></tr>`;
+      }
+    }
+
     // Modal Mutasi
     function openTxModal(item, defaultType = 'KELUAR') {
       document.getElementById('txBarangId').value = item.id;
@@ -875,17 +982,23 @@
       const bMasuk = document.getElementById('btnTypeMasuk');
       const bKeluar = document.getElementById('btnTypeKeluar');
       const submitBtn = document.getElementById('txSubmitBtn');
+      const picLabel = document.getElementById('txPicLabel');
+      const picInput = document.getElementById('txPic');
 
       if (type === 'MASUK') {
         bMasuk.className = 'type-btn active-masuk';
         bKeluar.className = 'type-btn';
         submitBtn.textContent = '＋ Simpan Barang Masuk';
         submitBtn.style.background = '#166534';
+        if (picLabel) picLabel.textContent = 'PIC Masuk (Penyetor / Sumber)';
+        if (picInput) picInput.placeholder = 'Nama penyetor / penanggung jawab...';
       } else {
         bMasuk.className = 'type-btn';
         bKeluar.className = 'type-btn active-keluar';
         submitBtn.textContent = '－ Simpan Barang Keluar';
         submitBtn.style.background = '#B32626';
+        if (picLabel) picLabel.textContent = 'PIC Keluar (Nama Pengambil)';
+        if (picInput) picInput.placeholder = 'Nama pengambil barang...';
       }
     }
 

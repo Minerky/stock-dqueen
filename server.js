@@ -521,7 +521,11 @@ const server = http.createServer(async (req, res) => {
         SELECT
           b.id, b.nama,
           k.nama as kategori_nama,
-          COALESCE(s.stok, 0) as stok
+          COALESCE(s.stok, 0) as stok,
+          COALESCE(last_out.pic, '') as last_out_pic,
+          COALESCE(last_out.tanggal, '') as last_out_date,
+          COALESCE(last_in.pic, '') as last_in_pic,
+          COALESCE(last_in.tanggal, '') as last_in_date
         FROM barang b
         JOIN kategori k ON b.subkategori_id = k.id
         LEFT JOIN (
@@ -530,6 +534,24 @@ const server = http.createServer(async (req, res) => {
           FROM transaksi
           GROUP BY barang_id
         ) s ON b.id = s.barang_id
+        LEFT JOIN (
+          SELECT t1.barang_id, t1.pic, t1.tanggal
+          FROM transaksi t1
+          WHERE t1.tipe = 'KELUAR' AND t1.pic != ''
+            AND t1.id = (
+              SELECT MAX(t2.id) FROM transaksi t2
+              WHERE t2.barang_id = t1.barang_id AND t2.tipe = 'KELUAR' AND t2.pic != ''
+            )
+        ) last_out ON b.id = last_out.barang_id
+        LEFT JOIN (
+          SELECT t3.barang_id, t3.pic, t3.tanggal
+          FROM transaksi t3
+          WHERE t3.tipe = 'MASUK' AND t3.pic != ''
+            AND t3.id = (
+              SELECT MAX(t4.id) FROM transaksi t4
+              WHERE t4.barang_id = t3.barang_id AND t4.tipe = 'MASUK' AND t4.pic != ''
+            )
+        ) last_in ON b.id = last_in.barang_id
         WHERE b.aktif = 1
       `;
       const params = [];
@@ -619,6 +641,7 @@ const server = http.createServer(async (req, res) => {
     if (method === 'GET' && pathname === '/api/transaksi') {
       const kategori = url.searchParams.get('kategori') || 'Kardus No 03';
       const search = url.searchParams.get('search') || '';
+      const barangId = url.searchParams.get('barang_id');
 
       let sql = `
         SELECT
@@ -632,7 +655,10 @@ const server = http.createServer(async (req, res) => {
       `;
       const params = [];
 
-      if (kategori && kategori !== 'Semua') {
+      if (barangId) {
+        sql += ` AND t.barang_id = ?`;
+        params.push(barangId);
+      } else if (kategori && kategori !== 'Semua') {
         sql += ` AND k.nama = ?`;
         params.push(kategori);
       }
