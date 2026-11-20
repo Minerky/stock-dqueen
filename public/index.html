@@ -777,7 +777,7 @@
   <script>
     const API = 'http://localhost:3001';
     let SHEETS = ['Kardus No 03', 'Kardus No 25', 'Nampan', 'Standing', 'Kantor', 'Pita', 'Box'];
-    let currentSheet = 'Kardus No 03';
+    let currentSheet = 'Semua';
     let currentItems = [];
     let categoriesMeta = {};
 
@@ -797,7 +797,7 @@
     async function init() {
       await loadCategories();
       renderTabs();
-      switchSheet(SHEETS[0] || 'Kardus No 03');
+      switchSheet('Semua');
       loadPics();
     }
 
