@@ -182,7 +182,7 @@ function escapeXml(str) {
     .replace(/'/g, '&apos;');
 }
 
-function buildSheetXml(rows) {
+function buildInventorySheetXml(rows) {
   const lastRow = Math.max(rows.length + 1, 1);
   let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -196,20 +196,82 @@ function buildSheetXml(rows) {
   <sheetFormatPr defaultRowHeight="20"/>
   <cols>
     <col min="1" max="1" width="7" customWidth="1"/>
+    <col min="2" max="2" width="40" customWidth="1"/>
+    <col min="3" max="3" width="14" customWidth="1"/>
+    <col min="4" max="4" width="14" customWidth="1"/>
+    <col min="5" max="5" width="14" customWidth="1"/>
+    <col min="6" max="6" width="16" customWidth="1"/>
+  </cols>
+  <sheetData>
+    <row r="1" ht="26" customHeight="1">
+      <c r="A1" t="inlineStr" s="1"><is><t>No</t></is></c>
+      <c r="B1" t="inlineStr" s="1"><is><t>Nama Barang</t></is></c>
+      <c r="C1" t="inlineStr" s="1"><is><t>Stok Awal</t></is></c>
+      <c r="D1" t="inlineStr" s="1"><is><t>Total Masuk</t></is></c>
+      <c r="E1" t="inlineStr" s="1"><is><t>Total Keluar</t></is></c>
+      <c r="F1" t="inlineStr" s="1"><is><t>Sisa Stok</t></is></c>
+    </row>`;
+
+  let rNum = 2;
+  for (const r of rows) {
+    const isAlt = (rNum % 2 === 1);
+    const sCenter = isAlt ? 9 : 2;
+    const sLeft = isAlt ? 10 : 3;
+    const sQty = isAlt ? 11 : 4;
+
+    xml += `
+    <row r="${rNum}" ht="20" customHeight="1">
+      <c r="A${rNum}" s="${sCenter}"><v>${rNum - 1}</v></c>
+      <c r="B${rNum}" t="inlineStr" s="${sLeft}"><is><t>${escapeXml(r.nama || '-')}</t></is></c>
+      <c r="C${rNum}" s="${sQty}"><v>${r.saldo_awal || 0}</v></c>
+      <c r="D${rNum}" s="${sQty}"><v>${r.total_masuk || 0}</v></c>
+      <c r="E${rNum}" s="${sQty}"><v>${r.total_keluar || 0}</v></c>
+      <c r="F${rNum}" s="${sQty}"><v>${r.sisa_stok || 0}</v></c>
+    </row>`;
+    rNum++;
+  }
+
+  xml += `
+  </sheetData>`;
+  if (rows.length > 0) {
+    xml += `
+  <autoFilter ref="A1:F${lastRow}"/>`;
+  }
+  xml += `
+</worksheet>`;
+  return xml;
+}
+
+function buildHistorySheetXml(rows) {
+  const lastRow = Math.max(rows.length + 1, 1);
+  let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <dimension ref="A1:G${lastRow}"/>
+  <sheetViews>
+    <sheetView workbookViewId="0">
+      <pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>
+      <selection pane="bottomLeft" activeCell="A2" sqref="A2"/>
+    </sheetView>
+  </sheetViews>
+  <sheetFormatPr defaultRowHeight="20"/>
+  <cols>
+    <col min="1" max="1" width="7" customWidth="1"/>
     <col min="2" max="2" width="14" customWidth="1"/>
     <col min="3" max="3" width="12" customWidth="1"/>
-    <col min="4" max="4" width="38" customWidth="1"/>
-    <col min="5" max="5" width="12" customWidth="1"/>
-    <col min="6" max="6" width="22" customWidth="1"/>
+    <col min="4" max="4" width="14" customWidth="1"/>
+    <col min="5" max="5" width="38" customWidth="1"/>
+    <col min="6" max="6" width="12" customWidth="1"/>
+    <col min="7" max="7" width="20" customWidth="1"/>
   </cols>
   <sheetData>
     <row r="1" ht="26" customHeight="1">
       <c r="A1" t="inlineStr" s="1"><is><t>No</t></is></c>
       <c r="B1" t="inlineStr" s="1"><is><t>Tanggal</t></is></c>
       <c r="C1" t="inlineStr" s="1"><is><t>Tipe</t></is></c>
-      <c r="D1" t="inlineStr" s="1"><is><t>Nama Barang</t></is></c>
-      <c r="E1" t="inlineStr" s="1"><is><t>Qty</t></is></c>
-      <c r="F1" t="inlineStr" s="1"><is><t>PIC</t></is></c>
+      <c r="D1" t="inlineStr" s="1"><is><t>Kategori</t></is></c>
+      <c r="E1" t="inlineStr" s="1"><is><t>Nama Barang</t></is></c>
+      <c r="F1" t="inlineStr" s="1"><is><t>Qty</t></is></c>
+      <c r="G1" t="inlineStr" s="1"><is><t>PIC</t></is></c>
     </row>`;
 
   let rNum = 2;
@@ -231,9 +293,10 @@ function buildSheetXml(rows) {
       <c r="A${rNum}" s="${sCenter}"><v>${rNum - 1}</v></c>
       <c r="B${rNum}" t="inlineStr" s="${sCenter}"><is><t>${escapeXml(r.tanggal || '-')}</t></is></c>
       <c r="C${rNum}" t="inlineStr" s="${sTipe}"><is><t>${escapeXml(r.tipe || '-')}</t></is></c>
-      <c r="D${rNum}" t="inlineStr" s="${sLeft}"><is><t>${escapeXml(r.nama || '-')}</t></is></c>
-      <c r="E${rNum}" s="${sQty}"><v>${r.qty || 0}</v></c>
-      <c r="F${rNum}" t="inlineStr" s="${sPic}"><is><t>${escapeXml(r.pic || '-')}</t></is></c>
+      <c r="D${rNum}" t="inlineStr" s="${sCenter}"><is><t>${escapeXml(r.kategori_nama || '-')}</t></is></c>
+      <c r="E${rNum}" t="inlineStr" s="${sLeft}"><is><t>${escapeXml(r.nama || '-')}</t></is></c>
+      <c r="F${rNum}" s="${sQty}"><v>${r.qty || 0}</v></c>
+      <c r="G${rNum}" t="inlineStr" s="${sPic}"><is><t>${escapeXml(r.pic || '-')}</t></is></c>
     </row>`;
     rNum++;
   }
@@ -242,16 +305,14 @@ function buildSheetXml(rows) {
   </sheetData>`;
   if (rows.length > 0) {
     xml += `
-  <autoFilter ref="A1:F${lastRow}"/>`;
+  <autoFilter ref="A1:G${lastRow}"/>`;
   }
   xml += `
 </worksheet>`;
   return xml;
 }
 
-function generateMultiSheetXlsx(categories, rowsByCategory) {
-  const sheetList = categories.map(c => ({ name: c, rows: rowsByCategory[c] || [] }));
-
+function generateMultiSheetXlsx(sheets) {
   let contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
@@ -259,7 +320,7 @@ function generateMultiSheetXlsx(categories, rowsByCategory) {
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
   <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>`;
 
-  sheetList.forEach((s, idx) => {
+  sheets.forEach((s, idx) => {
     contentTypesXml += `\n  <Override PartName="/xl/worksheets/sheet${idx + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`;
   });
   contentTypesXml += `\n</Types>`;
@@ -272,17 +333,17 @@ function generateMultiSheetXlsx(categories, rowsByCategory) {
   let wbRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`;
 
-  sheetList.forEach((s, idx) => {
+  sheets.forEach((s, idx) => {
     wbRelsXml += `\n  <Relationship Id="rId${idx + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${idx + 1}.xml"/>`;
   });
-  wbRelsXml += `\n  <Relationship Id="rId${sheetList.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
+  wbRelsXml += `\n  <Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
   wbRelsXml += `\n</Relationships>`;
 
   let workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheets>`;
 
-  sheetList.forEach((s, idx) => {
+  sheets.forEach((s, idx) => {
     workbookXml += `\n    <sheet name="${escapeXml(s.name)}" sheetId="${idx + 1}" r:id="rId${idx + 1}"/>`;
   });
   workbookXml += `\n  </sheets>\n</workbook>`;
@@ -370,10 +431,11 @@ function generateMultiSheetXlsx(categories, rowsByCategory) {
     { name: 'xl/styles.xml', data: stylesXml }
   ];
 
-  sheetList.forEach((s, idx) => {
+  sheets.forEach((s, idx) => {
+    const sheetData = s.type === 'history' ? buildHistorySheetXml(s.rows) : buildInventorySheetXml(s.rows);
     files.push({
       name: `xl/worksheets/sheet${idx + 1}.xml`,
-      data: buildSheetXml(s.rows)
+      data: sheetData
     });
   });
 
@@ -586,9 +648,36 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, rows);
     }
 
-    // Export Excel (6 Sheet Terpisah Persis Sesuai Excel Asli)
+    // Export Excel (6 Sheet Terpisah Persis Sesuai Excel Asli + Riwayat Mutasi)
     if (method === 'GET' && pathname === '/api/laporan') {
-      const allRows = db.prepare(`
+      const categories = ['Kardus', 'Nampan', 'Standing', 'Kantor', 'Pita', 'Box'];
+      const sheets = [];
+
+      for (const cat of categories) {
+        const itemRows = db.prepare(`
+          SELECT
+            b.id,
+            b.nama,
+            COALESCE(SUM(CASE WHEN t.tipe = 'AWAL' THEN t.qty ELSE 0 END), 0) as saldo_awal,
+            COALESCE(SUM(CASE WHEN t.tipe = 'MASUK' THEN t.qty ELSE 0 END), 0) as total_masuk,
+            COALESCE(SUM(CASE WHEN t.tipe = 'KELUAR' THEN t.qty ELSE 0 END), 0) as total_keluar,
+            COALESCE(SUM(CASE WHEN t.tipe IN ('AWAL', 'MASUK') THEN t.qty ELSE -t.qty END), 0) as sisa_stok
+          FROM barang b
+          JOIN kategori k ON b.subkategori_id = k.id
+          LEFT JOIN transaksi t ON t.barang_id = b.id
+          WHERE k.nama = ? AND b.aktif = 1
+          GROUP BY b.id
+          ORDER BY b.id ASC
+        `).all(cat);
+
+        sheets.push({
+          name: cat,
+          type: 'inventory',
+          rows: itemRows
+        });
+      }
+
+      const historyRows = db.prepare(`
         SELECT
           t.id, t.tanggal, t.tipe, t.qty, t.pic,
           b.nama,
@@ -599,17 +688,13 @@ const server = http.createServer(async (req, res) => {
         ORDER BY t.tanggal DESC, t.id DESC
       `).all();
 
-      const categories = ['Kardus', 'Nampan', 'Standing', 'Kantor', 'Pita', 'Box'];
-      const rowsByCategory = {};
-      categories.forEach(c => rowsByCategory[c] = []);
-
-      allRows.forEach(r => {
-        if (rowsByCategory[r.kategori_nama]) {
-          rowsByCategory[r.kategori_nama].push(r);
-        }
+      sheets.push({
+        name: 'Riwayat Mutasi',
+        type: 'history',
+        rows: historyRows
       });
 
-      const xlsxBuf = generateMultiSheetXlsx(categories, rowsByCategory);
+      const xlsxBuf = generateMultiSheetXlsx(sheets);
       const filename = `Stok_DQueen_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
       res.writeHead(200, {
