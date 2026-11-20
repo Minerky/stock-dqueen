@@ -1,4 +1,5 @@
 const http = require('node:http');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
@@ -86,6 +87,29 @@ function parseQty(val) {
   if (!val) return 0;
   const num = parseFloat(String(val).replace(',', '.').replace(/[^\d.-]/g, ''));
   return isNaN(num) ? 0 : num;
+}
+
+// ---- Autentikasi sederhana: kode + nama (tanpa password) ----
+const USERS = [
+  { kode: '03', nama: 'Rezky' },
+  { kode: '11', nama: 'Novita' },
+  { kode: '12', nama: 'Yanti' }
+];
+const sessions = new Map(); // token -> { kode, nama }
+
+function getSession(req) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  return token ? (sessions.get(token) || null) : null;
+}
+
+function requireAuth(req, res) {
+  const session = getSession(req);
+  if (!session) {
+    sendJson(res, 401, { error: 'Silakan login terlebih dahulu untuk mengubah data.' });
+    return null;
+  }
+  return session;
 }
 
 // OpenXML Builder (6 Sheet Sesuai Excel Asli)
@@ -453,7 +477,7 @@ function generateMultiSheetXlsx(sheets) {
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -484,6 +508,36 @@ const server = http.createServer(async (req, res) => {
         transaksi: tRow ? tRow.cnt : 0,
         total_stok: sRow ? sRow.total_stok : 0
       });
+    }
+
+    // Login (kode + nama, tanpa password)
+    if (method === 'POST' && pathname === '/api/login') {
+      const body = await parseBody(req);
+      const kode = String(body.kode || '').trim();
+      const nama = String(body.nama || '').trim();
+
+      const user = USERS.find(u => u.kode === kode && u.nama.toLowerCase() === nama.toLowerCase());
+      if (!user) {
+        return sendJson(res, 401, { error: 'Kode atau nama tidak sesuai.' });
+      }
+
+      const token = crypto.randomBytes(24).toString('hex');
+      sessions.set(token, { kode: user.kode, nama: user.nama });
+      return sendJson(res, 200, { token, user: { kode: user.kode, nama: user.nama } });
+    }
+
+    // Cek sesi aktif (dipakai saat halaman dimuat ulang)
+    if (method === 'GET' && pathname === '/api/session') {
+      const session = getSession(req);
+      return sendJson(res, 200, { user: session });
+    }
+
+    // Logout
+    if (method === 'POST' && pathname === '/api/logout') {
+      const auth = req.headers.authorization || '';
+      const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+      if (token) sessions.delete(token);
+      return sendJson(res, 200, { message: 'Berhasil logout' });
     }
 
     // 6 Kategori Sheet
@@ -586,6 +640,7 @@ const server = http.createServer(async (req, res) => {
 
     // Tambah Barang Baru
     if (method === 'POST' && pathname === '/api/barang') {
+      if (!requireAuth(req, res)) return;
       const body = await parseBody(req);
       const { kategori, nama, saldo_awal, pic } = body;
 
@@ -616,6 +671,7 @@ const server = http.createServer(async (req, res) => {
 
     // Hapus Barang (Soft Delete)
     if (method === 'DELETE' && pathname === '/api/barang') {
+      if (!requireAuth(req, res)) return;
       const id = url.searchParams.get('id');
       if (!id) {
         return sendJson(res, 400, { error: 'ID barang diperlukan' });
@@ -627,6 +683,7 @@ const server = http.createServer(async (req, res) => {
 
     // Input Mutasi (Masuk / Keluar)
     if (method === 'POST' && pathname === '/api/transaksi') {
+      if (!requireAuth(req, res)) return;
       const body = await parseBody(req);
       const { barang_id, tanggal, tipe, qty, pic } = body;
 
@@ -661,6 +718,7 @@ const server = http.createServer(async (req, res) => {
 
     // Hapus Riwayat Mutasi / Transaksi
     if (method === 'DELETE' && pathname === '/api/transaksi') {
+      if (!requireAuth(req, res)) return;
       const id = url.searchParams.get('id');
       if (!id) {
         return sendJson(res, 400, { error: 'ID mutasi diperlukan' });
@@ -797,6 +855,7 @@ const server = http.createServer(async (req, res) => {
 
     // Backup Database
     if (method === 'POST' && pathname === '/api/backup') {
+      if (!requireAuth(req, res)) return;
       const backupDir = path.join(__dirname, 'backup');
       if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 

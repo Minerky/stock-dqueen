@@ -96,6 +96,20 @@
       align-items: center;
       gap: 8px;
     }
+    .auth-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-left: 10px;
+      border-left: 1px solid var(--border);
+    }
+    .auth-user {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .auth-user.logged-in { color: var(--brand); }
 
     /* Sheet Tabs Bar (Persis seperti tab sheet Excel) */
     .sheet-tabs-bar {
@@ -614,6 +628,10 @@
       <div class="topbar-actions">
         <button class="btn btn-brand btn-sm" onclick="exportExcel()">📥 Unduh Excel (.xlsx)</button>
         <button class="btn btn-secondary btn-sm" onclick="backupDb()">💾 Cadangkan</button>
+        <div class="auth-area">
+          <span class="auth-user" id="authUserLabel">Mode Lihat Saja</span>
+          <button class="btn btn-brand btn-sm" id="authButton" onclick="openLoginModal()">🔑 Login</button>
+        </div>
       </div>
     </div>
   </header>
@@ -797,6 +815,34 @@
     </div>
   </div>
 
+  <!-- MODAL: LOGIN PETUGAS -->
+  <div class="modal-overlay" id="modalLogin">
+    <div class="modal-box" style="max-width: 400px;">
+      <div class="modal-head">
+        <div>
+          <h3 style="margin:0;">Login Petugas</h3>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">Masukkan kode dan nama untuk mengubah data</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('modalLogin')">&times;</button>
+      </div>
+
+      <form id="loginForm" onsubmit="submitLogin(event)" style="margin-top:16px;">
+        <div class="form-group">
+          <label class="form-label">Kode</label>
+          <input type="text" id="loginKode" class="form-control" placeholder="Contoh: 03" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nama</label>
+          <input type="text" id="loginNama" class="form-control" placeholder="Nama petugas" required autocomplete="off">
+        </div>
+        <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalLogin')">Batal</button>
+          <button type="submit" class="btn btn-brand">Login</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="toast-box" id="toastBox"></div>
 
   <script>
@@ -822,8 +868,120 @@
     function openModal(id) { document.getElementById(id).classList.add('open'); }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
+    /* ---- Autentikasi (kode + nama) ---- */
+    let authToken = localStorage.getItem('dq_auth_token') || '';
+    let currentUser = null;
+
+    function authHeaders() {
+      return authToken ? { 'Authorization': `Bearer ${authToken}` } : {};
+    }
+
+    function fetchWithAuth(url, options = {}) {
+      return fetch(url, {
+        ...options,
+        headers: { ...authHeaders(), ...(options.headers || {}) }
+      });
+    }
+
+    function requireLogin(message = 'Login dulu ya untuk mengubah data.') {
+      if (currentUser) return true;
+      toast(message, true);
+      openLoginModal();
+      return false;
+    }
+
+    function handleAuthError(res) {
+      if (res.status !== 401) return false;
+      authToken = '';
+      currentUser = null;
+      localStorage.removeItem('dq_auth_token');
+      updateAuthUI();
+      toast('Sesi berakhir. Silakan login kembali.', true);
+      openLoginModal();
+      return true;
+    }
+
+    function updateAuthUI() {
+      const label = document.getElementById('authUserLabel');
+      const btn = document.getElementById('authButton');
+      if (!label || !btn) return;
+
+      if (currentUser) {
+        label.textContent = `👤 ${currentUser.nama} (${currentUser.kode})`;
+        label.classList.add('logged-in');
+        btn.textContent = 'Logout';
+        btn.className = 'btn btn-secondary btn-sm';
+        btn.onclick = logout;
+      } else {
+        label.textContent = 'Mode Lihat Saja';
+        label.classList.remove('logged-in');
+        btn.textContent = '🔑 Login';
+        btn.className = 'btn btn-brand btn-sm';
+        btn.onclick = openLoginModal;
+      }
+    }
+
+    async function restoreSession() {
+      if (!authToken) { updateAuthUI(); return; }
+      try {
+        const res = await fetchWithAuth(`${API}/api/session`);
+        const data = await res.json();
+        if (data.user) {
+          currentUser = data.user;
+        } else {
+          authToken = '';
+          localStorage.removeItem('dq_auth_token');
+        }
+      } catch (e) {}
+      updateAuthUI();
+    }
+
+    function openLoginModal() {
+      document.getElementById('loginKode').value = '';
+      document.getElementById('loginNama').value = '';
+      openModal('modalLogin');
+      setTimeout(() => document.getElementById('loginKode').focus(), 100);
+    }
+
+    async function submitLogin(e) {
+      e.preventDefault();
+      const kode = document.getElementById('loginKode').value.trim();
+      const nama = document.getElementById('loginNama').value.trim();
+
+      try {
+        const res = await fetch(`${API}/api/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kode, nama })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login gagal');
+
+        authToken = data.token;
+        currentUser = data.user;
+        localStorage.setItem('dq_auth_token', authToken);
+        closeModal('modalLogin');
+        updateAuthUI();
+        toast(`Halo, ${currentUser.nama}! Anda bisa mengubah data.`);
+      } catch (err) {
+        toast(err.message, true);
+      }
+    }
+
+    async function logout() {
+      try {
+        await fetchWithAuth(`${API}/api/logout`, { method: 'POST' });
+      } catch (e) {}
+      authToken = '';
+      currentUser = null;
+      localStorage.removeItem('dq_auth_token');
+      updateAuthUI();
+      toast('Anda telah logout. Sekarang mode lihat saja.');
+    }
+
     /* Inisialisasi Sheet Tabs */
     async function init() {
+      await restoreSession();
       await loadCategories();
       renderTabs();
       switchSheet('Semua');
@@ -1119,6 +1277,7 @@
     }
 
     function confirmDeleteBarang(id, nama) {
+      if (!requireLogin('Login dulu untuk menghapus barang.')) return;
       document.getElementById('confirmDeleteTitle').textContent = 'Hapus Barang?';
       document.getElementById('confirmDeleteText').textContent = `Apakah Anda yakin ingin menghapus "${nama}" dari daftar persediaan?`;
       document.getElementById('btnConfirmDeleteAction').onclick = () => doDeleteBarang(id, nama);
@@ -1127,7 +1286,8 @@
 
     async function doDeleteBarang(id, nama) {
       try {
-        const res = await fetch(`${API}/api/barang?id=${id}`, { method: 'DELETE' });
+        const res = await fetchWithAuth(`${API}/api/barang?id=${id}`, { method: 'DELETE' });
+        if (handleAuthError(res)) return;
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Gagal menghapus barang');
 
@@ -1148,6 +1308,7 @@
     }
 
     function confirmDeleteTransaksi(id, nama, tipe, qty, refreshBarangId = null) {
+      if (!requireLogin('Login dulu untuk menghapus riwayat mutasi.')) return;
       document.getElementById('confirmDeleteTitle').textContent = 'Hapus Catatan Mutasi?';
       document.getElementById('confirmDeleteText').textContent = `Hapus catatan mutasi ${tipe} (${qty} pcs) untuk "${nama}"? Stok barang terkait akan otomatis disesuaikan.`;
       document.getElementById('btnConfirmDeleteAction').onclick = () => doDeleteTransaksi(id, nama, refreshBarangId);
@@ -1156,7 +1317,8 @@
 
     async function doDeleteTransaksi(id, nama, refreshBarangId = null) {
       try {
-        const res = await fetch(`${API}/api/transaksi?id=${id}`, { method: 'DELETE' });
+        const res = await fetchWithAuth(`${API}/api/transaksi?id=${id}`, { method: 'DELETE' });
+        if (handleAuthError(res)) return;
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Gagal menghapus riwayat');
 
@@ -1182,6 +1344,7 @@
 
     // Modal Mutasi
     function openTxModal(item, defaultType = 'KELUAR') {
+      if (!requireLogin('Login dulu untuk mencatat mutasi stok.')) return;
       document.getElementById('txBarangId').value = item.id;
       document.getElementById('txBarangNama').value = item.nama;
       document.getElementById('txTanggal').value = new Date().toISOString().slice(0, 10);
@@ -1226,11 +1389,12 @@
       const pic = document.getElementById('txPic').value;
 
       try {
-        const res = await fetch(`${API}/api/transaksi`, {
+        const res = await fetchWithAuth(`${API}/api/transaksi`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ barang_id, tanggal, tipe, qty, pic })
         });
+        if (handleAuthError(res)) return;
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Gagal mencatat mutasi');
 
@@ -1248,7 +1412,8 @@
 
     // Modal Tambah Barang
     function openNewBarangModal() {
-      const isSemua = (currentSheet === 'Semua' || currentSheet === 'Riwayat');
+      if (!requireLogin('Login dulu untuk menambah barang.')) return;
+      const isSemua = (currentSheet === 'Semua' || currentSheet === 'Stok Habis' || currentSheet === 'Semua Kardus' || currentSheet === 'Riwayat');
       document.getElementById('modalBarangTitle').textContent = isSemua ? 'Tambah Barang Baru' : `Tambah Barang ke Sheet ${currentSheet}`;
       document.getElementById('barangForm').reset();
       const catSelect = document.getElementById('bKategori');
@@ -1267,11 +1432,12 @@
       const pic = document.getElementById('bPic').value;
 
       try {
-        const res = await fetch(`${API}/api/barang`, {
+        const res = await fetchWithAuth(`${API}/api/barang`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ kategori: kat, nama, saldo_awal, pic })
         });
+        if (handleAuthError(res)) return;
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Gagal menambah barang');
 
@@ -1300,9 +1466,11 @@
     }
 
     async function backupDb() {
+      if (!requireLogin('Login dulu untuk membuat cadangan database.')) return;
       try {
         toast('Menyimpan cadangan...');
-        const res = await fetch(`${API}/api/backup`, { method: 'POST' });
+        const res = await fetchWithAuth(`${API}/api/backup`, { method: 'POST' });
+        if (handleAuthError(res)) return;
         const d = await res.json();
         toast(`Cadangan tersimpan: ${d.filename}`);
       } catch (e) {
